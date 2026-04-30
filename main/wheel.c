@@ -261,6 +261,17 @@ void wheel_GoBackward( void )
 	ESP_ERROR_CHECK(bdc_motor_reverse(motor_right));
 }
 
+void left_wheel_GoBackward( void )
+{
+	ESP_LOGI(WHEEL_TAG, "Backward only left motor");
+    ESP_ERROR_CHECK(bdc_motor_reverse(motor_left));
+}
+
+void right_wheel_GoBackward( void )
+{
+	ESP_LOGI(WHEEL_TAG, "Backward only left motor");
+    ESP_ERROR_CHECK(bdc_motor_reverse(motor_right));
+}
 
 
 int wheel_SetVel( uint32_t wL, uint32_t wR)

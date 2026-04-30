@@ -27,23 +27,34 @@
 #include "mission_control.h"
 #include <inttypes.h>
 
-//#define TREE_EYES_TASK
+#define TREE_EYES_TASK
 //#define IMU_TASK
 #define WHEEL_CTRL_TASK
 #define IR_LINE_CTRL_TASK
-#define MISSION_CTRL_TASK
+#define SPEED_CTRL_TASK
 
 
 void app_main(void)
 {
 xEvents = xEventGroupCreate();
 
+TaskHandle_t ir_line_handle = NULL;
+
+#ifdef IR_LINE_CTRL_TASK
+    xTaskCreate(ir_line_ctrl,
+                "ircontrol",
+                configMINIMAL_STACK_SIZE*3,
+                NULL,
+                5,
+                &ir_line_handle);
+#endif
+
 #ifdef TREE_EYES_TASK
     xTaskCreate(Treeeyes,
                 "treeeyes",
                 configMINIMAL_STACK_SIZE*3,
-                NULL,
-                5,
+                ir_line_handle,
+                6,
                 NULL);
 #endif
 
@@ -65,22 +76,14 @@ xEvents = xEventGroupCreate();
                 NULL);
 #endif
 
-#ifdef IR_LINE_CTRL_TASK
-xTaskCreate(ir_line_ctrl,
-                "ircontrol",
+
+#ifdef SPEED_CTRL_TASK
+
+xTaskCreate(speed_ctrl,
+                "speedctrl",
                 configMINIMAL_STACK_SIZE*3,
                 NULL,
-                5,
-                NULL);
-#endif
-
-#ifdef MISSION_CTRL_TASK
-
-xTaskCreate(msctrl_task,
-                "mscontrol",
-                configMINIMAL_STACK_SIZE*3,
-                NULL,
-                5,
+                4,
                 NULL);
 #endif
 
