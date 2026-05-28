@@ -24,36 +24,48 @@
 #include "wheel_task.h"
 #include "imu_task.h"
 #include "ir_line_task.h"
-#include "mission_control.h"
+#include "speed_ctrl_task.h"
 #include <inttypes.h>
 
-#define TREE_EYES_TASK
+//#define TREE_EYES_TASK
 //#define IMU_TASK
 #define WHEEL_CTRL_TASK
 #define IR_LINE_CTRL_TASK
 #define SPEED_CTRL_TASK
 
-
 void app_main(void)
 {
-xEvents = xEventGroupCreate();
 
-TaskHandle_t ir_line_handle = NULL;
+/* xEvents structure
+   BIT  Descirption
+   -------------------------
+    0 - Most left IR sensor
+    1 - Left IR sensor
+    2 - Middle IR sensor
+    3 - Right IR sensor
+    4 - Most Right IR sensor
+    5 - Stop flag (from ir_line_task)
+    rest - unused
+*/    
+EventGroupHandle_t xEvents = xEventGroupCreate();
+TaskHandle_t wheel_handle = NULL;
+
+static handlers_t multiple_handlers;
 
 #ifdef IR_LINE_CTRL_TASK
     xTaskCreate(ir_line_ctrl,
                 "ircontrol",
                 configMINIMAL_STACK_SIZE*3,
-                NULL,
+                xEvents,
                 5,
-                &ir_line_handle);
+                NULL);
 #endif
 
 #ifdef TREE_EYES_TASK
     xTaskCreate(Treeeyes,
                 "treeeyes",
                 configMINIMAL_STACK_SIZE*3,
-                ir_line_handle,
+                xEvents,
                 6,
                 NULL);
 #endif
@@ -71,19 +83,19 @@ TaskHandle_t ir_line_handle = NULL;
     xTaskCreate(wheel_ctrl,
                 "wheel",
                 configMINIMAL_STACK_SIZE*3,
-                NULL,
+                xEvents,
                 5,
-                NULL);
+                &wheel_handle);
 #endif
 
-
 #ifdef SPEED_CTRL_TASK
-
-xTaskCreate(speed_ctrl,
-                "speedctrl",
+    multiple_handlers.events = xEvents;
+    multiple_handlers.wheel = wheel_handle;
+    xTaskCreate(speed_ctrl,
+                "speed",
                 configMINIMAL_STACK_SIZE*3,
-                NULL,
-                4,
+                &multiple_handlers,
+                5,
                 NULL);
 #endif
 

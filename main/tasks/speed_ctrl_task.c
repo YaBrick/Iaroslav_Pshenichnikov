@@ -1,46 +1,85 @@
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/gpio.h"
+#include "esp_log.h"
+#include "sdkconfig.h"
+#include "wheel.h" 
+#include "speed_ctrl_task.h"
+#include "pid_ctrl.h"
 
-const static char *TAG = "main_app";
+const static char *TAG = "speed_ctrl";
+
+speed_t speed_estimator(void){
+    int pL = 0, pR = 0;
+    const int estimated_increment = 3;
+    wheel_GetEndoderPulses(&pL, &pR);
+
+    speed_t s = {
+        .L = pL * estimated_increment,
+        .R = pR * estimated_increment,
+    };
+    return s;
+}
 
 portTASK_FUNCTION(speed_ctrl, args)
 {
-    TaskHandle_t ir_line_handle = (TaskHandle_t)args;
-    TreeEyes_Init();
-	//TreeEyes_DisableLeft();
-    //TreeEyes_DisableRight();
-    ultrasonic_value_t sensor[3];
-    char *near_sensor_name;
-    char *sensor_name[] = {"left", "middle", "right"};
-	while(1)
-	{
-        TreeEyes_TrigAndWait(portMAX_DELAY);
-        TreeEyes_Read(&sensor[0], &sensor[1], &sensor[2]);
-        
-        uint32_t min_ticks = 0xFFFFFFFF; 
-        near_sensor_name = "none";
-
-        for ( int i = 0; i < 3; i++ )
-        {
-            if (sensor[i].isUpdated == pdTRUE && sensor[i].tof_ticks < min_ticks) 
-            {
-                min_ticks = sensor[i].tof_ticks;
-                near_sensor_name = sensor_name[i];
-            }
-        }
-
-        float distance = (min_ticks * (1000000.0 / esp_clk_apb_freq())) / 58.0;
-
-        if (distance < 10){
-            vTaskSuspend(ir_line_handle);
-            wheel_SetVel(0, 0);
-        }
-        else{
-            vTaskResume(ir_line_handle);
-        }
-
-        ESP_LOGI(TAG, "The sensor with the nearest detected object was: %s (Distance: %.2f cm)", near_sensor_name, distance);
-        //printf("The sensor with the nearest detected object was: %s (Distance: %"PRIu32" ticks)\n", near_sensor_name, min_ticks);
+    handlers_t *ctx = (handlers_t *)args;
+    EventGroupHandle_t evt          = ctx->events;
+    TaskHandle_t       wheel_handle = ctx->wheel;
+    speed_t speed;
     
-        vTaskDelay(pdMS_TO_TICKS(100));
+    int eventBits;
+
+    volatile bool L_big, L_med; 
+    volatile bool R_big, R_med; 
+    volatile int16_t L_mult, R_mult, L_mult_old = 0, R_mult_old = 0;
+  
+    volatile bool middle, error_state;
+    const uint16_t common_speed_increment = 27;
+
+    while(1){
+        
+      eventBits = xEventGroupGetBits(evt);
+      speed = speed_estimator();
+      
+              /* Invert: bit = 1 means line detected under that sensor */
+      uint8_t sens = ~eventBits & 0x3F;
+
+      bool L_big   = (sens & BIT0) != 0;   /* very-left  */
+      bool L_med   = (sens & BIT1) != 0;   /* left       */
+      bool middle  = (sens & BIT2) != 0;   /* middle     */
+      bool R_med   = (sens & BIT3) != 0;   /* right      */
+      bool R_big   = (sens & BIT4) != 0;   /* very-right */
+
+      bool error_state = (sens == 0x00);
+
+      bool sonar_stop = (sens & BIT5) != 0;
+
+        L_mult = 5 *  L_big
+                +  8 * (L_med  & !L_big)
+                +  7 * (middle & !L_big  & !L_med)
+                +  6 * (!L_big & !L_med  & !middle & R_med)
+                +  7 *  error_state
+                -  12 * (R_big);
+                      
+        R_mult = 5 *  R_big
+                +  8 * (R_med  & !R_big)
+                +  7 * (middle & !R_big  & !R_med)
+                +  6 * (!R_big & !R_med  & !middle & L_med)
+                +  7 *  error_state
+                -  12 * (L_big);
+
+        if ((L_mult != L_mult_old) | (R_mult != R_mult_old)){
+            uint16_t L_pkt = (uint16_t)(L_mult * common_speed_increment * (uint16_t)sonar_stop + 1024);          // + 1024 just to be able pass "signed" value as an unsigned
+            uint16_t R_pkt = (uint16_t)(R_mult * common_speed_increment * (uint16_t)sonar_stop + 1024);
+            //xTaskNotifyIndexed(wheel_handle, 0, (uint32_t)L_pkt | ((uint32_t)R_pkt << 16), eSetValueWithOverwrite);
+
+            //ESP_LOGI(TAG, "Left encoder: %d\tRight encoder: %d\r\n", pL, pR);
+            ESP_LOGI(TAG, "L = %d R = %d", speed.L, speed.R);
+            L_mult_old = L_mult; R_mult_old = R_mult;
+        }
+        vTaskDelay(pdMS_TO_TICKS(30));
     }
 	
 }

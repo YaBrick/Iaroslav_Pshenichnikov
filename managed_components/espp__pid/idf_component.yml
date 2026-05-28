@@ -1,0 +1,21 @@
+dependencies:
+  espp/base_component: '>=1.0'
+  idf:
+    version: '>=5.0'
+description: PID (proportional-integral-derivative) component for ESP-IDF
+documentation: https://esp-cpp.github.io/espp/pid.html
+license: MIT
+maintainers:
+- William Emfinger <waemfinger@gmail.com>
+repository: git://github.com/esp-cpp/espp.git
+repository_info:
+  commit_sha: 32e8215eeb6e1757e074abeb963b2d320bbdd390
+  path: components/pid
+tags:
+- cpp
+- Component
+- PID
+- Math
+- Control
+url: https://github.com/esp-cpp/espp/tree/main/components/pid
+version: 1.0.36
