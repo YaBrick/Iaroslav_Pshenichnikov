@@ -60,6 +60,14 @@ void wheel_GoForward( void );
 
 void wheel_GoBackward( void );
 
+void left_wheel_GoForward( void );
+
+void right_wheel_GoForward( void );
+
+void left_wheel_GoBackward( void );
+
+void right_wheel_GoBackward( void );
+
 int wheel_SetVel( uint32_t wL, uint32_t wR);
 
 void wheel_GetPower( uint32_t *pL, uint32_t *pR );

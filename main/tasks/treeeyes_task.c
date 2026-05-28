@@ -1,15 +1,19 @@
 #include "treeeyes_task.h"
+#include "wheel.h"
 
 const static char *TAG = "main_app";
 
 portTASK_FUNCTION(Treeeyes, args)
 {
+    TaskHandle_t ir_line_handle = (TaskHandle_t)args;
     TreeEyes_Init();
 	//TreeEyes_DisableLeft();
     //TreeEyes_DisableRight();
     ultrasonic_value_t sensor[3];
     char *near_sensor_name;
     char *sensor_name[] = {"left", "middle", "right"};
+    bool stop_flag = 0;
+
 	while(1)
 	{
         TreeEyes_TrigAndWait(portMAX_DELAY);
@@ -28,10 +32,23 @@ portTASK_FUNCTION(Treeeyes, args)
         }
 
         float distance = (min_ticks * (1000000.0 / esp_clk_apb_freq())) / 58.0;
+
+        if (distance < 10){
+            if(!stop_flag){
+                stop_flag = 1;
+                vTaskSuspend(ir_line_handle);
+                wheel_SetVel(0, 0);
+            }
+        }
+        else{
+            vTaskResume(ir_line_handle);
+            stop_flag = 0;
+        }
+
         ESP_LOGI(TAG, "The sensor with the nearest detected object was: %s (Distance: %.2f cm)", near_sensor_name, distance);
         //printf("The sensor with the nearest detected object was: %s (Distance: %"PRIu32" ticks)\n", near_sensor_name, min_ticks);
     
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 	
 }
