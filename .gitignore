@@ -36,6 +36,7 @@ sdkconfig
 # For older versions or manual component management
 /components/.idf/
 **/components/.idf/
+managed_components/
 
 # If ESP-IDF tools are installed/referenced locally to the project
 .espressif/
@@ -81,5 +82,6 @@ Desktop.ini
 .vscode/launch.json
 
 .cache/
+.claude/
 
 dependencies.lock
