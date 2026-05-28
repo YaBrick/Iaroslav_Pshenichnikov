@@ -22,6 +22,19 @@ speed_t speed_estimator(void){
     return s;
 }
 
+pid_ctrl_config_t pid_config = {
+    .init_param = {
+    .kp = 20,
+    .ki = 1,
+    .kd = 10,
+    .max_output = 350,
+    .min_output = 0,
+    .max_integral = 100,
+    .min_integral = 5,
+    .cal_type = PID_CAL_TYPE_INCREMENTAL
+    }
+}
+
 portTASK_FUNCTION(speed_ctrl, args)
 {
     handlers_t *ctx = (handlers_t *)args;
@@ -33,10 +46,15 @@ portTASK_FUNCTION(speed_ctrl, args)
 
     volatile bool L_big, L_med; 
     volatile bool R_big, R_med; 
-    volatile int16_t L_mult, R_mult, L_mult_old = 0, R_mult_old = 0;
+    volatile int16_t L_mult, R_mult;
+    voltatile int16_t L_pid, R_pid; //values after applying PID computing
   
     volatile bool middle, error_state;
-    const uint16_t common_speed_increment = 27;
+
+    pid_ctrl_block_handle_t L_pid_block;
+    pid_ctrl_block_handle_t R_pid_block;
+    ESP_ERROR_CHECK(pid_new_control_block(&pid_config, &L_pid_block));    ESP_ERROR_CHECK(pid_new_control_block(&pid_config, &pid));
+    ESP_ERROR_CHECK(pid_new_control_block(&pid_config, &R_pid_block));
 
     while(1){
         
@@ -70,14 +88,15 @@ portTASK_FUNCTION(speed_ctrl, args)
                 +  7 *  error_state
                 -  12 * (L_big);
 
-        if ((L_mult != L_mult_old) | (R_mult != R_mult_old)){
-            uint16_t L_pkt = (uint16_t)(L_mult * common_speed_increment * (uint16_t)sonar_stop + 1024);          // + 1024 just to be able pass "signed" value as an unsigned
-            uint16_t R_pkt = (uint16_t)(R_mult * common_speed_increment * (uint16_t)sonar_stop + 1024);
-            //xTaskNotifyIndexed(wheel_handle, 0, (uint32_t)L_pkt | ((uint32_t)R_pkt << 16), eSetValueWithOverwrite);
+        pid_compute(L_pid_block, R_mult, &L_pid);
+        pid_compute(L_pid_block, R_mult, &L_pid);
 
-            //ESP_LOGI(TAG, "Left encoder: %d\tRight encoder: %d\r\n", pL, pR);
-            ESP_LOGI(TAG, "L = %d R = %d", speed.L, speed.R);
-            L_mult_old = L_mult; R_mult_old = R_mult;
+        uint16_t L_pkt = (uint16_t)(L_pid * (uint16_t)sonar_stop + 1024);          // + 1024 just to be able pass "signed" value as an unsigned
+        uint16_t R_pkt = (uint16_t)(R_pid * (uint16_t)sonar_stop + 1024);
+        //xTaskNotifyIndexed(wheel_handle, 0, (uint32_t)L_pkt | ((uint32_t)R_pkt << 16), eSetValueWithOverwrite);
+
+        //ESP_LOGI(TAG, "Left encoder: %d\tRight encoder: %d\r\n", pL, pR);
+        ESP_LOGI(TAG, "L = %d R = %d", speed.L, speed.R);
         }
         vTaskDelay(pdMS_TO_TICKS(30));
     }
