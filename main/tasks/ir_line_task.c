@@ -18,16 +18,6 @@ static const char *TAG = "IR_Line";
 #define INFRA_RED_RIGHT_GPIO  18
 #define INFRA_RED_VERY_RIGHT_GPIO 8
 
-#define IR_LINE_VERY_VERY_LEFT (1ULL << INFRA_RED_VERY_LEFT_GPIO)
-#define IR_LINE_VERY_LEFT ((1ULL << INFRA_RED_VERY_LEFT_GPIO) | (1ULL << INFRA_RED_LEFT_GPIO))
-#define IR_LINE_LEFT (1ULL << INFRA_RED_LEFT_GPIO)
-#define IR_LINE_LEFT_MIDDLE ((1ULL << INFRA_RED_LEFT_GPIO) | (1ULL << INFRA_RED_MIDDLE_GPIO))
-#define IR_LINE_MIDDLE (1ULL << INFRA_RED_MIDDLE_GPIO)
-#define IR_LINE_RIGHT_MIDDLE ((1ULL << INFRA_RED_MIDDLE_GPIO) | (1ULL << INFRA_RED_RIGHT_GPIO))
-#define IR_LINE_RIGHT (1ULL << INFRA_RED_RIGHT_GPIO)
-#define IR_LINE_VERY_RIGHT ((1ULL << INFRA_RED_RIGHT_GPIO) | (1ULL << INFRA_RED_VERY_RIGHT_GPIO))
-#define IR_LINE_VERY_VERY_RIGHT (1ULL << INFRA_RED_VERY_RIGHT_GPIO)
-
 #define INFRA_RED_OUT_GPIO_MASK ((uint64_t)((1ULL << INFRA_RED_VERY_LEFT_GPIO) | (1ULL << INFRA_RED_LEFT_GPIO) | (1ULL << INFRA_RED_MIDDLE_GPIO) | (1ULL << INFRA_RED_RIGHT_GPIO) | (1ULL << INFRA_RED_VERY_RIGHT_GPIO)))
 
 
@@ -51,37 +41,10 @@ portTASK_FUNCTION(ir_line_ctrl, args)
 				(uint64_t)gpio_get_level(INFRA_RED_RIGHT_GPIO) << 3 |
 				(uint64_t)gpio_get_level(INFRA_RED_VERY_RIGHT_GPIO) << 4;
 
-		//gpioValue &= INFRA_RED_OUT_GPIO_MASK;
 
-        //ESP_LOGI(TAG, "gpio value: %llu", gpioValue);
-		//ESP_LOGI(TAG, "gpio_value: %x", gpioValue);
-		//gpioValue = (REG_READ(GPIO_IN_REG) & INFRA_RED_OUT_GPIO_MASK);
 		xEventGroupClearBits(xEvents, ((1ULL << 24) - 1));
 		xEventGroupSetBits(xEvents, gpioValue);
 		ESP_LOGI(TAG, "%lu", xEventGroupGetBits(xEvents)); //clearBits !!!!
-		/*
-		switch(gpioValue)
-		{
-		case IR_LINE_VERY_VERY_LEFT:
-			ESP_LOGI(TAG, "GPIO VERY VERY LEFT!");
-			xEventGroupSetBits(xEvents, IR_VERY_VERY_LEFT_FLAG);
-		case IR_LINE_LEFT:
-			ESP_LOGI(TAG, "GPIO LEFT!");
-			xEventGroupSetBits(xEvents, IR_LEFT_FLAG);
-		case IR_LINE_MIDDLE:
-			ESP_LOGI(TAG, "GPIO MIDDLE!");
-			xEventGroupSetBits(xEvents, IR_MIDDLE_FLAG);
-		case IR_LINE_RIGHT:
-			ESP_LOGI(TAG, "GPIO RIGHT!");
-			xEventGroupSetBits(xEvents, IR_RIGHT_FLAG);
-		case IR_LINE_VERY_VERY_RIGHT:
-			ESP_LOGI(TAG, "GPIO VERY VERY RIGHT!");
-			xEventGroupSetBits(xEvents, IR_VERY_VERY_RIGHT_FLAG);
-		default:
-			ESP_LOGI(TAG, "NOTHING!");
-			break;
-		}
-			*/
          vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
