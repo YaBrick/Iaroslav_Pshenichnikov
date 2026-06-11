@@ -9,7 +9,7 @@ maintainers:
 - William Emfinger <waemfinger@gmail.com>
 repository: git://github.com/esp-cpp/espp.git
 repository_info:
-  commit_sha: 32e8215eeb6e1757e074abeb963b2d320bbdd390
+  commit_sha: e8442f8bda331c24515d9a2f23d2749b6400eb4f
   path: components/pid
 tags:
 - cpp
@@ -18,4 +18,4 @@ tags:
 - Math
 - Control
 url: https://github.com/esp-cpp/espp/tree/main/components/pid
-version: 1.0.36
+version: 1.1.0
