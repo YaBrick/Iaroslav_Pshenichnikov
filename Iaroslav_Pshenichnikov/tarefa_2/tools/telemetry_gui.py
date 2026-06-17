@@ -15,6 +15,11 @@ Recebe via UART (115200 baud) linhas no formato:
     speed_L - velocidade estimada da roda esquerda (cm/s, inteiro).
     speed_R - velocidade estimada da roda direita  (cm/s, inteiro).
 
+E também linhas do wheel_task (valores decodificados, aplicados aos motores):
+    >WHL:<L_signed>,<R_signed>
+
+    L_signed/R_signed - duty em ticks de PWM com sinal (negativo = ré).
+
 Mostra:
     - Uma fileira horizontal de "LEDs" representando os bits de eventBits.
     - Os valores L_mult e R_mult abaixo dos LEDs.
@@ -33,6 +38,7 @@ import serial.tools.list_ports
 
 BAUDRATE = 115200
 PREFIX = ">DATA:"
+PREFIX_WHL = ">WHL:"
 
 # Rótulos dos 6 bits exibidos como LEDs
 LED_LABELS = ["L2", "L1", "M", "R1", "R2", "STOP"]
@@ -136,9 +142,12 @@ class TelemetryGUI:
         self.l_pid_text = self.wheel_canvas.create_text(80, 85, text="--",
                                                         fill="white",
                                                         font=("Consolas", 22, "bold"))
-        self.l_speed_text = self.wheel_canvas.create_text(80, 130, text="-- cm/s",
+        self.l_speed_text = self.wheel_canvas.create_text(80, 125, text="-- cm/s",
                                                           fill="#f1c40f",
                                                           font=("Consolas", 11))
+        self.l_pwm_text = self.wheel_canvas.create_text(80, 148, text="PWM: --",
+                                                        fill="#e67e22",
+                                                        font=("Consolas", 10))
 
         # roda direita
         self.wheel_canvas.create_text(280, 15, text="Roda Direita (R_pid)",
@@ -149,9 +158,12 @@ class TelemetryGUI:
         self.r_pid_text = self.wheel_canvas.create_text(280, 85, text="--",
                                                         fill="white",
                                                         font=("Consolas", 22, "bold"))
-        self.r_speed_text = self.wheel_canvas.create_text(280, 130, text="-- cm/s",
+        self.r_speed_text = self.wheel_canvas.create_text(280, 125, text="-- cm/s",
                                                           fill="#f1c40f",
                                                           font=("Consolas", 11))
+        self.r_pwm_text = self.wheel_canvas.create_text(280, 148, text="PWM: --",
+                                                        fill="#e67e22",
+                                                        font=("Consolas", 10))
 
     # ------------------------------------------------------------- serial
     def _refresh_ports(self):
@@ -205,19 +217,26 @@ class TelemetryGUI:
             if not raw:
                 continue
             line = raw.decode("utf-8", errors="ignore").strip()
-            if line.startswith(PREFIX):
-                self.data_queue.put(line[len(PREFIX):])
+            if line.startswith(PREFIX) or line.startswith(PREFIX_WHL):
+                self.data_queue.put(line)
 
     def _poll_queue(self):
-        """Roda na thread da GUI: aplica o último pacote recebido."""
-        latest = None
+        """Roda na thread da GUI: aplica o último pacote de cada tipo."""
+        latest_data = None
+        latest_whl = None
         try:
             while True:
-                latest = self.data_queue.get_nowait()
+                line = self.data_queue.get_nowait()
+                if line.startswith(PREFIX):
+                    latest_data = line[len(PREFIX):]
+                elif line.startswith(PREFIX_WHL):
+                    latest_whl = line[len(PREFIX_WHL):]
         except queue.Empty:
             pass
-        if latest is not None:
-            self._update_display(latest)
+        if latest_data is not None:
+            self._update_display(latest_data)
+        if latest_whl is not None:
+            self._update_wheel_pwm(latest_whl)
         self.root.after(50, self._poll_queue)
 
     # ------------------------------------------------------------- update
@@ -254,6 +273,19 @@ class TelemetryGUI:
         self.wheel_canvas.itemconfig(self.r_pid_text, text=f"{r_pid:.1f}")
         self.wheel_canvas.itemconfig(self.l_speed_text, text=f"{l_speed} cm/s")
         self.wheel_canvas.itemconfig(self.r_speed_text, text=f"{r_speed} cm/s")
+
+    def _update_wheel_pwm(self, payload):
+        """Aplica os valores decodificados pelo wheel_task (duty com sinal)."""
+        parts = payload.split(",")
+        if len(parts) != 2:
+            return
+        try:
+            l_pwm = int(parts[0])
+            r_pwm = int(parts[1])
+        except ValueError:
+            return
+        self.wheel_canvas.itemconfig(self.l_pwm_text, text=f"PWM: {l_pwm:+d}")
+        self.wheel_canvas.itemconfig(self.r_pwm_text, text=f"PWM: {r_pwm:+d}")
 
     def _on_close(self):
         self._disconnect()

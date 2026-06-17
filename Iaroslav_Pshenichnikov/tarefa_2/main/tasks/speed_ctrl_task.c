@@ -14,7 +14,7 @@ const static char *TAG = "speed_ctrl";
 speed_t speed_estimator(void){
     int pL = 0, pR = 0;
     static int last_pL = 0, last_pR = 0;
-    const int estimated_increment = 3;
+    const float estimated_increment = 11.63f; // got it empirically
     wheel_GetEndoderPulses(&pL, &pR);
 
     int64_t timestamp_ms = esp_timer_get_time() / 1000;
@@ -41,13 +41,13 @@ portTASK_FUNCTION(speed_ctrl, args)
     pid_ctrl_config_t pid_config = {
         .init_param = {
         .kp = 1,
-        .ki = 0.001,
-        .kd = 0.3,
-        .max_output = 350,
-        .min_output = -350,
-        .max_integral = 100,
-        .min_integral = 5,
-        .cal_type = PID_CAL_TYPE_POSITIONAL
+        .ki = 0.0,
+        .kd = 0.0,
+        .max_output = 16,
+        .min_output = -16,
+        .max_integral = 3,
+        .min_integral = -3,
+        .cal_type = PID_CAL_TYPE_INCREMENTAL
         }
     };
 
@@ -62,7 +62,8 @@ portTASK_FUNCTION(speed_ctrl, args)
     volatile bool L_big, L_med;
     volatile bool R_big, R_med;
     volatile int16_t L_mult, R_mult;
-    const int common_speed_mult = 27;
+    const int speed_scale       = 1;    // setpoint: peso L_mult (máx ~8) → cm/s (máx ~16)
+    const int common_speed_mult = 25;   // saída do PID (cm/s, ±16) → ticks de PWM (±400): 400/16 ≈ 25
 
     volatile float L_pid, R_pid; //values after applying PID computing
 
@@ -105,11 +106,22 @@ portTASK_FUNCTION(speed_ctrl, args)
                 +  7 *  error_state
                 -  12 * (R_big);
 
-        pid_compute(L_pid_block, (L_mult * common_speed_mult), &L_pid);
-        pid_compute(R_pid_block, (R_mult * common_speed_mult), &R_pid);
 
-        uint16_t L_pkt = (uint16_t)((uint16_t)L_pid * (uint16_t)sonar_stop + 1024);          // + 1024 just to be able pass "signed" value as an unsigned
-        uint16_t R_pkt = (uint16_t)((uint16_t)R_pid * (uint16_t)sonar_stop + 1024);
+        /* Setpoint em cm/s, erro = alvo − medido (ambos em cm/s) */
+        int target_L = L_mult * speed_scale;
+        int target_R = R_mult * speed_scale;
+        pid_compute(L_pid_block, (target_L - speed.L), &L_pid);
+        pid_compute(R_pid_block, (target_R - speed.R), &R_pid);
+
+        /* Saída do PID (cm/s) → ticks de PWM. Calculamos o valor com sinal em int,
+         * limitamos à faixa do motor (±400 ticks), e só então somamos 1024
+         * e convertemos para uint16_t — assim o cast sempre recebe um valor não negativo. */
+        int L_val = (int)(common_speed_mult * L_pid) * (int)sonar_stop;
+        int R_val = (int)(common_speed_mult * R_pid) * (int)sonar_stop;
+        if (L_val >  400){L_val =  400;}   if (L_val < -400){L_val = -400;}
+        if (R_val >  400){R_val =  400;}   if (R_val < -400){R_val = -400;}
+        uint16_t L_pkt = (uint16_t)(L_val + 1024);   // + 1024: transmite o sinal como unsigned
+        uint16_t R_pkt = (uint16_t)(R_val + 1024);
         xTaskNotifyIndexed(wheel_handle, 0, (uint32_t)L_pkt | ((uint32_t)R_pkt << 16), eSetValueWithOverwrite);
 
         //ESP_LOGI(TAG, "Left encoder: %d\tRight encoder: %d\r\n", pL, pR);

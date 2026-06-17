@@ -58,7 +58,14 @@ portTASK_FUNCTION(wheel_ctrl, arg)
       }
       wheel_SetVel(L_speed, R_speed);
 
-      ESP_LOGI(TAG, "L=%lu  R=%lu", L_speed, R_speed);
+      //ESP_LOGI(TAG, "L=%lu  R=%lu", L_speed, R_speed);
+
+      /* Telemetria para a GUI Python: valores já decodificados (com sinal),
+       * em ticks de PWM, exatamente como aplicados aos motores.
+       * Formato: >WHL:<L_signed>,<R_signed>\n */
+      printf(">WHL:%d,%d\n",
+             (int)(packed & 0xFFFF) - 1024,
+             (int)(packed >> 16)    - 1024);
 
       vTaskDelay(pdMS_TO_TICKS(50));
     }
