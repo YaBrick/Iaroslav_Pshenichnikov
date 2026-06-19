@@ -30,15 +30,16 @@ portTASK_FUNCTION(Treeeyes, args)
         }
 
         float distance = (min_ticks * (1000000.0 / esp_clk_apb_freq())) / 58.0;
-/*
-        if (distance < 10){
-            vTaskSuspend(ir_line_handle); //убери бля <33
-            wheel_SetVel(0, 0);
+
+        /* Flag de parada por sonar (BIT5 do event group): levanta quando o objeto
+         * mais próximo está a menos de 10 cm; o speed_ctrl zera as velocidades. */
+        if (distance < 10.0f){
+            xEventGroupSetBits(evt, BIT5);
         }
         else{
-            vTaskResume(ir_line_handle);
+            xEventGroupClearBits(evt, BIT5);
         }
-*/
+
         ESP_LOGI(TAG, "The sensor with the nearest detected object was: %s (Distance: %.2f cm)", near_sensor_name, distance);
         //printf("The sensor with the nearest detected object was: %s (Distance: %"PRIu32" ticks)\n", near_sensor_name, min_ticks);
     

@@ -38,7 +38,7 @@ portTASK_FUNCTION(ir_line_ctrl, args)
 
     while (1) {
         
-        /* Read sensors — sensor outputs 0 when line is detected */
+        /* Lê os sensores — o sensor dá 0 quando a linha é detectada */
         gpioValue = (uint8_t)(
             (uint8_t)gpio_get_level(INFRA_RED_VERY_LEFT_GPIO)       |
             (uint8_t)gpio_get_level(INFRA_RED_LEFT_GPIO)        << 1 |

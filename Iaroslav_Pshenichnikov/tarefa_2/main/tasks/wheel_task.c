@@ -22,7 +22,7 @@ portTASK_FUNCTION(wheel_ctrl, arg)
 {
 	wheel_Init();
 	wheel_SetVel(100, 100);
-  uint32_t L_speed = 0, R_speed = 0, packed = 0;
+  uint32_t packed = 0;
 
 	uint32_t power_left_wheel, power_right_wheel; 
 
@@ -33,39 +33,35 @@ portTASK_FUNCTION(wheel_ctrl, arg)
     while(1){
 
       xTaskNotifyWaitIndexed(
-            0,                  // индекс ящика
-            0,                  // не сбрасываем биты на входе
-            ULONG_MAX,          // полностью забираем значение на выходе
+            0,                  // índice do slot de notificação
+            0,                  // não limpa bits na entrada
+            ULONG_MAX,          // pega o valor inteiro na saída
             &packed,
             portMAX_DELAY);
 
-      L_speed = packed & 0xFFFF; R_speed = packed >> 16;
-      wheel_GoForward();
-      if(L_speed < 1024){
-        L_speed = 1024 - L_speed;
-        left_wheel_GoBackward();
-      }
-      else{
-        L_speed = L_speed - 1024;
-      }
-      
-      if(R_speed < 1024){
-        R_speed = 1024 - R_speed;
-        right_wheel_GoBackward();
-      }
-      else{
-        R_speed = R_speed - 1024;
-      }
-      wheel_SetVel(L_speed, R_speed);
+      /* Recebido do speed_ctrl: duty de cada roda em ticks de PWM (com sinal, offset 1024) */
+      int L_duty = (int)(packed & 0xFFFF) - 1024;
+      int R_duty = (int)(packed >> 16)    - 1024;
 
-      //ESP_LOGI(TAG, "L=%lu  R=%lu", L_speed, R_speed);
+      /* Limita à faixa do motor (±400 ticks) */
+      if(L_duty >  400){ L_duty =  400; }   if(L_duty < -400){ L_duty = -400; }
+      if(R_duty >  400){ R_duty =  400; }   if(R_duty < -400){ R_duty = -400; }
+
+      /* Valores com sinal, em ticks, como serão aplicados (para a telemetria) */
+      int L_signed = L_duty, R_signed = R_duty;
+
+      /* O sinal define o sentido; a magnitude vai para o PWM */
+      wheel_GoForward();
+      if(L_duty < 0){ left_wheel_GoBackward();  L_duty = -L_duty; }
+      if(R_duty < 0){ right_wheel_GoBackward(); R_duty = -R_duty; }
+      wheel_SetVel((uint32_t)L_duty, (uint32_t)R_duty);
+
+      //ESP_LOGI(TAG, "L=%d  R=%d", L_signed, R_signed);
 
       /* Telemetria para a GUI Python: valores já decodificados (com sinal),
        * em ticks de PWM, exatamente como aplicados aos motores.
        * Formato: >WHL:<L_signed>,<R_signed>\n */
-      printf(">WHL:%d,%d\n",
-             (int)(packed & 0xFFFF) - 1024,
-             (int)(packed >> 16)    - 1024);
+      printf(">WHL:%d,%d\n", L_signed, R_signed);
 
       vTaskDelay(pdMS_TO_TICKS(50));
     }

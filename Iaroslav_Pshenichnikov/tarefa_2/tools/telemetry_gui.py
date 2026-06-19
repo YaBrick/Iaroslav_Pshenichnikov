@@ -28,6 +28,7 @@ Mostra:
 Dependência: pyserial  ->  pip install pyserial
 """
 
+import math
 import queue
 import threading
 import tkinter as tk
@@ -39,6 +40,12 @@ import serial.tools.list_ports
 BAUDRATE = 115200
 PREFIX = ">DATA:"
 PREFIX_WHL = ">WHL:"
+
+# Cinemática (igual ao firmware) e escalas da seta de velocidade do corpo
+ARROW_HALF_TRACK = 10.0     # cm, = WHEEL_HALF_TRACK_CM
+ARROW_MAX_SPEED = 16.0      # cm/s -> comprimento máximo da seta
+ARROW_MAX_OMEGA = 1.6       # rad/s -> inclinação máxima
+ARROW_MAX_TILT_DEG = 60.0   # inclinação (graus) na velocidade angular máxima
 
 # Rótulos dos 6 bits exibidos como LEDs
 LED_LABELS = ["L2", "L1", "M", "R1", "R2", "STOP"]
@@ -61,6 +68,7 @@ class TelemetryGUI:
         self._build_connection_bar()
         self._build_led_row()
         self._build_mult_labels()
+        self._build_arrow()
         self._build_wheels()
 
         # processa a fila de dados periodicamente na thread da GUI
@@ -124,6 +132,28 @@ class TelemetryGUI:
                  font=("Consolas", 14, "bold"), width=14).pack(side="left", padx=20)
         tk.Label(frame, textvariable=self.r_mult_var, bg="#1e1e1e", fg="white",
                  font=("Consolas", 14, "bold"), width=14).pack(side="left", padx=20)
+
+    def _build_arrow(self):
+        frame = tk.Frame(self.root, bg="#1e1e1e")
+        frame.pack(pady=10)
+
+        tk.Label(frame, text="Velocidade do corpo (seta: comprimento=v, ângulo=w)",
+                 bg="#1e1e1e", fg="#cccccc").pack()
+
+        self.arrow_canvas = tk.Canvas(frame, width=240, height=200,
+                                      bg="#1e1e1e", highlightthickness=0)
+        self.arrow_canvas.pack()
+
+        self.arrow_cx, self.arrow_cy = 120, 165   # base (pivô) da seta
+        # pivô de referência
+        self.arrow_canvas.create_oval(self.arrow_cx - 4, self.arrow_cy - 4,
+                                      self.arrow_cx + 4, self.arrow_cy + 4,
+                                      outline="#555555")
+        self.arrow_line = self.arrow_canvas.create_line(
+            self.arrow_cx, self.arrow_cy, self.arrow_cx, self.arrow_cy - 30,
+            fill="#1abc9c", width=6, arrow=tk.LAST, arrowshape=(16, 20, 7))
+        self.arrow_text = self.arrow_canvas.create_text(
+            120, 190, text="v=--  w=--", fill="#cccccc", font=("Consolas", 10))
 
     def _build_wheels(self):
         frame = tk.Frame(self.root, bg="#1e1e1e")
@@ -273,6 +303,27 @@ class TelemetryGUI:
         self.wheel_canvas.itemconfig(self.r_pid_text, text=f"{r_pid:.1f}")
         self.wheel_canvas.itemconfig(self.l_speed_text, text=f"{l_speed} cm/s")
         self.wheel_canvas.itemconfig(self.r_speed_text, text=f"{r_speed} cm/s")
+
+        # seta da velocidade do corpo
+        self._update_arrow(l_speed, r_speed)
+
+    def _update_arrow(self, l_speed, r_speed):
+        """Seta da velocidade do corpo (cinemática direta das rodas).
+        Comprimento ~ velocidade linear v; inclinação ~ velocidade angular w."""
+        v = (l_speed + r_speed) / 2.0                       # cm/s
+        omega = (l_speed - r_speed) / (2.0 * ARROW_HALF_TRACK)  # rad/s
+
+        length = 15 + min(abs(v) / ARROW_MAX_SPEED, 1.0) * 120
+        tilt = max(-1.0, min(1.0, omega / ARROW_MAX_OMEGA)) * ARROW_MAX_TILT_DEG
+        theta = math.radians(tilt)                          # >0 => inclina à direita
+
+        forward = 1.0 if v >= 0 else -1.0
+        tip_x = self.arrow_cx + forward * length * math.sin(theta)
+        tip_y = self.arrow_cy - forward * length * math.cos(theta)
+        self.arrow_canvas.coords(self.arrow_line,
+                                 self.arrow_cx, self.arrow_cy, tip_x, tip_y)
+        self.arrow_canvas.itemconfig(
+            self.arrow_text, text=f"v={v:+.1f} cm/s   w={omega:+.2f} rad/s")
 
     def _update_wheel_pwm(self, payload):
         """Aplica os valores decodificados pelo wheel_task (duty com sinal)."""

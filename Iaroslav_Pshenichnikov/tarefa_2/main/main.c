@@ -27,7 +27,7 @@
 #include "speed_ctrl_task.h"
 #include <inttypes.h>
 
-//#define TREE_EYES_TASK
+#define TREE_EYES_TASK
 //#define IMU_TASK
 #define WHEEL_CTRL_TASK
 #define IR_LINE_CTRL_TASK
@@ -44,7 +44,7 @@ void app_main(void)
     2 - Middle IR sensor
     3 - Right IR sensor
     4 - Most Right IR sensor
-    5 - Stop flag (from ir_line_task)
+    5 - Stop flag (from treeeyes_task, sonar < 10 cm)
     rest - unused
 */    
 EventGroupHandle_t xEvents = xEventGroupCreate();
