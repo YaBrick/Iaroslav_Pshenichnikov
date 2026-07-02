@@ -33,3 +33,17 @@ Below is short explanation of remaining files in the project folder.
 ```
 Additionally, the sample project contains Makefile and component.mk files, used for the legacy Make based build system. 
 They are not used or needed when building with CMake and idf.py.
+
+## Medições de WCET (osciloscópio)
+
+
+<img src="img/TEK0001.BMP" width="60%" style="transform: rotate(90deg); padding: 20px" />
+*WCET do treeeyes task*
+
+
+<img src="img/TEK0002.BMP" width="60%" style="transform: rotate(90deg); padding: 20px" />
+*WCET do ir_line task*
+
+
+<img src="img/TEK0003.BMP" width="60%" style="transform: rotate(90deg); padding: 20px" />
+*WCET do speed_ctrl task*

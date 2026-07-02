@@ -6,6 +6,7 @@
 #include "sdkconfig.h"
 #include "ir_line_task.h"
 #include "soc/gpio_reg.h"
+#include "wcet.h"
 
 static const char *TAG = "IR_Line";
 
@@ -24,6 +25,7 @@ static const char *TAG = "IR_Line";
 
 portTASK_FUNCTION(ir_line_ctrl, args)
 {
+    //wcet_init(46, 47);
     gpio_config_t ir_line_config = {
         .pin_bit_mask = INFRA_RED_OUT_GPIO_MASK,
         .mode         = GPIO_MODE_INPUT,
@@ -37,7 +39,7 @@ portTASK_FUNCTION(ir_line_ctrl, args)
     uint32_t gpioValue = 0;
 
     while (1) {
-        
+        //wcet_begin(46, 47);
         /* Lê os sensores — o sensor dá 0 quando a linha é detectada */
         gpioValue = (uint8_t)(
             (uint8_t)gpio_get_level(INFRA_RED_VERY_LEFT_GPIO)       |
@@ -50,7 +52,7 @@ portTASK_FUNCTION(ir_line_ctrl, args)
         xEventGroupClearBits(evt, 0x1F);
 		xEventGroupSetBits(evt, gpioValue);
 		//ESP_LOGI(TAG, "%lu", xEventGroupGetBits(evt));
-        
+        //wcet_end(47);
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }

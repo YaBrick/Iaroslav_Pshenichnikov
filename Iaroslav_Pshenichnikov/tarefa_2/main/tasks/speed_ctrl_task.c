@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "speed_ctrl_task.h"
 #include "pid_ctrl.h"
+#include "wcet.h"
 
 const static char *TAG = "speed_ctrl";
 
@@ -17,18 +18,20 @@ speed_t speed_estimator(void){
     const float estimated_increment = 11.63f; // obtido empiricamente
     wheel_GetEndoderPulses(&pL, &pR);
 
-    int64_t timestamp_ms = esp_timer_get_time() / 1000;
-    static int64_t last_timestamp = 0;
-
-    int64_t dt = timestamp_ms - last_timestamp;  
+    /* dt em microssegundos (sem arredondar para ms) e cálculo em float:
+     * elimina a quantização da velocidade. A constante continua válida pois
+     * Δp*inc*1000/dt_us == Δp*inc/dt_ms. */
+    int64_t now_us = esp_timer_get_time();
+    static int64_t last_us = 0;
+    int64_t dt_us = now_us - last_us;
 
     speed_t s = {0};
-    if ((dt > 0)) {                                 
-        s.L = ((pL - last_pL) * estimated_increment) / (int)dt;
-        s.R =  ((pR - last_pR) * estimated_increment) / (int)dt;
+    if (dt_us > 0) {
+        s.L = (pL - last_pL) * estimated_increment * 1000.0f / dt_us;
+        s.R = (pR - last_pR) * estimated_increment * 1000.0f / dt_us;
     }
 
-    last_timestamp = timestamp_ms;
+    last_us = now_us;
     last_pL = pL;
     last_pR = pR;
     return s;
@@ -82,16 +85,18 @@ line_state_t read_line_state(uint8_t sens){
 
 portTASK_FUNCTION(speed_ctrl, args)
 {
-    /* Nível alto: velocidade linear do corpo. Saída em cm/s (máx ~16 cm/s) */
+    //wcet_init(46, 47);
+    /* Único PID de velocidade linear do corpo. Saída em cm/s (máx ~16 cm/s).
+     * kd pequeno: a velocidade medida é quantizada/ruidosa, derivada alta amplifica ruído. */
     pid_ctrl_config_t pid_linear_speed_config = {
         .init_param = {
-        .kp = 0.3,
-        .ki = 0.3,
-        .kd = 0.0,
+        .kp = 0.8,
+        .ki = 0.04,
+        .kd = 0.01,
         .max_output = 16,
-        .min_output = -16,
-        .max_integral = 3,
-        .min_integral = -3,
+        .min_output = 0,
+        .max_integral = 5,
+        .min_integral = -5,
         .cal_type = PID_CAL_TYPE_INCREMENTAL
         }
     };
@@ -101,26 +106,12 @@ portTASK_FUNCTION(speed_ctrl, args)
     pid_ctrl_config_t pid_angular_speed_config = {
         .init_param = {
         .kp = 0.4,
-        .ki = 0.4,
+        .ki = 0.05,
         .kd = 0.0,
-        .max_output = 2,
-        .min_output = -2,
-        .max_integral = 1,
-        .min_integral = -1,
-        .cal_type = PID_CAL_TYPE_INCREMENTAL
-        }
-    };
-
-    /* Nível baixo: PID por velocidade de cada roda (mesma config para L e R) */
-    pid_ctrl_config_t pid_wheel_config = {
-        .init_param = {
-        .kp = 0.1,
-        .ki = 0.4,
-        .kd = 0.0,
-        .max_output = 16,
-        .min_output = -16,
-        .max_integral = 3,
-        .min_integral = -3,
+        .max_output = 1.7,
+        .min_output = -1.7,
+        .max_integral = 0.4,
+        .min_integral = -0.4,
         .cal_type = PID_CAL_TYPE_INCREMENTAL
         }
     };
@@ -133,21 +124,16 @@ portTASK_FUNCTION(speed_ctrl, args)
 
     int eventBits;
     volatile float target_lin_speed, target_ang_speed = 0;
-    volatile float L_pid, R_pid; //values after applying PID computing
 
-    /* Nível alto (corpo): velocidade linear/angular */
+    /* Único nível: PID de velocidade linear/angular do corpo */
     pid_ctrl_block_handle_t linear_pid_block;
     pid_ctrl_block_handle_t angular_pid_block;
-    /* Nível baixo (rodas): velocidade de cada roda */
-    pid_ctrl_block_handle_t L_pid_block;
-    pid_ctrl_block_handle_t R_pid_block;
 
     ESP_ERROR_CHECK(pid_new_control_block(&pid_linear_speed_config,  &linear_pid_block));
     ESP_ERROR_CHECK(pid_new_control_block(&pid_angular_speed_config, &angular_pid_block));
-    ESP_ERROR_CHECK(pid_new_control_block(&pid_wheel_config,         &L_pid_block));
-    ESP_ERROR_CHECK(pid_new_control_block(&pid_wheel_config,         &R_pid_block));
 
     while(1){
+      //wcet_begin(46, 47);
 
       eventBits = xEventGroupGetBits(evt);
       speed = speed_estimator();
@@ -167,80 +153,67 @@ portTASK_FUNCTION(speed_ctrl, args)
         const float V_MAX  = 12.0f;   // velocidade linear máxima (cm/s)
         const float W_STEP = 0.4f;    // passo de velocidade angular por nível (rad/s)
 
-        if (sonar_stop){    // LINE_LOST cai no default do switch (pos=0) => segue reto como no centro
-            target_lin_speed = 0;
-            target_ang_speed = 0;
+        /* Setpoint a partir do estado da linha (LINE_LOST cai no default => pos=0 => reto).
+         * Calculado sempre, mesmo parado, para os gráficos ficarem coerentes. */
+        int pos;
+        switch (line){
+            case LINE_L_DISTANT:     pos = -5; break;
+            case LINE_L_DISTANT_MID: pos = -3; break;
+            case LINE_L_MID:         pos = -2; break;
+            case LINE_L_MID_CENTER:  pos = -1; break;
+            case LINE_CENTER:        pos =  0; break;
+            case LINE_CENTER_R_MID:  pos =  1; break;
+            case LINE_R_MID:         pos =  2; break;
+            case LINE_R_MID_DISTANT: pos =  3; break;
+            case LINE_R_DISTANT:     pos =  5; break;
+            default:                 pos =  0; break;
         }
-        else{
-            /* posição discreta: -4 (extrema esq) .. 0 (centro) .. +4 (extrema dir) */
-            int pos;
-            switch (line){
-                case LINE_L_DISTANT:     pos = -4; break;
-                case LINE_L_DISTANT_MID: pos = -3; break;
-                case LINE_L_MID:         pos = -2; break;
-                case LINE_L_MID_CENTER:  pos = -1; break;
-                case LINE_CENTER:        pos =  0; break;
-                case LINE_CENTER_R_MID:  pos =  1; break;
-                case LINE_R_MID:         pos =  2; break;
-                case LINE_R_MID_DISTANT: pos =  3; break;
-                case LINE_R_DISTANT:     pos =  4; break;
-                default:                 pos =  0; break;
-            }
-            int dist = (pos < 0) ? -pos : pos;
-            target_ang_speed = pos * W_STEP;                  // gira na direção da linha
-            target_lin_speed = V_MAX * (1.0f - 0.15f * dist); // mais devagar nas curvas
-        }
-
+        int dist = (pos < 0) ? -pos : pos;
+        target_ang_speed = pos * W_STEP;                  // gira na direção da linha
+        target_lin_speed = V_MAX * (1.0f - 0.15f * dist); // mais devagar nas curvas
 
         /* === Nível alto: PID de velocidade linear/angular do corpo ===
-         * Medimos (lin, ang) a partir das velocidades das rodas (cinemática direta);
-         * a saída do PID é o comando (lin, ang). Requer Ki != 0 para manter o comando. */
-        body_speed_t measured = forward_cinematic_converter(speed.L, speed.R);
+         * Se o sonar levanta a flag de parada, CONGELAMOS o PID: não chamamos
+         * pid_compute (preserva integral, erros e saída anteriores) e mandamos 0
+         * aos motores. Assim, ao retomar (ex.: no meio de uma curva fechada) o
+         * controle continua de onde parou, sem zerar o comando angular. */
         float lin_cmd = 0, ang_cmd = 0;
-        pid_compute(linear_pid_block,  (target_lin_speed - measured.linear),  &lin_cmd);
-        pid_compute(angular_pid_block, (target_ang_speed - measured.angular), &ang_cmd);
+        cinematic_t wheel_target = {0.0f, 0.0f};
+        int L_val = 0, R_val = 0;
 
-        /* Cinemática inversa: comando (lin, ang) → velocidades-alvo das rodas */
-        cinematic_t wheel_target = inverse_cinematic_converter(lin_cmd, ang_cmd);
+        if (!sonar_stop){
+            body_speed_t measured = forward_cinematic_converter(speed.L, speed.R);
+            pid_compute(linear_pid_block,  (target_lin_speed - measured.linear),  &lin_cmd);
+            pid_compute(angular_pid_block, (target_ang_speed - measured.angular), &ang_cmd);
 
+            /* Cinemática inversa: comando (lin, ang) → velocidades-alvo das rodas [cm/s] */
+            wheel_target = inverse_cinematic_converter(lin_cmd, ang_cmd);
 
-        Выпили второй пид (по ШИМу) - он наху не нужен, первы пид делает именно то что нужно
-
-        также оверушут в том числе из за того чтопроизводной части нет - добавь
-
-        дада, как бы интегральная часть должна эта решать но нихуя, глянь графики в инете, правда
-
-        подбери интегральную часть и производную, наверняка надо будет уменьшить линейный коэфф
-
-        Сделай замер WCET - поднять гпио высоко под конец исполнения, замерить осликом. Оформить в график 
-        желательно
-
-        
-        /* === Nível baixo: PID por velocidade de cada roda ===
-         * erro = alvo da roda − velocidade medida da roda */
-        pid_compute(L_pid_block, (wheel_target.l_wheel - speed.L), &L_pid);
-        pid_compute(R_pid_block, (wheel_target.r_wheel - speed.R), &R_pid);
-
+            /* cm/s → ticks de PWM: multiplica em float antes de truncar (duty fino);
+             * o clamp em ±400 fica no wheel_task. */
+            const int common_speed_mult = 25;   // ±16 cm/s → ±400
+            L_val = (int)(common_speed_mult * wheel_target.l_wheel);
+            R_val = (int)(common_speed_mult * wheel_target.r_wheel);
+        }
+        /* sonar_stop: L_val=R_val=0 e PID congelado (pid_compute não foi chamado) */
 
         ///Preparando sinal para enviar no wheel_task.c
-        /* Converte cm/s → ticks de PWM AQUI, multiplicando ainda em float antes de
-         * truncar, para não perder resolução (duty fino em vez de passos de 25).
-         * !sonar_stop zera na parada. O clamp em ±400 fica no wheel_task. */
-        const int common_speed_mult = 25;   // cm/s → ticks de PWM: ±16 cm/s → ±400
-        int L_val = (int)(common_speed_mult * L_pid) * (!sonar_stop);
-        int R_val = (int)(common_speed_mult * R_pid) * (!sonar_stop);
         uint16_t L_pkt = (uint16_t)(L_val + 1024);   // + 1024: transmite o sinal como unsigned
         uint16_t R_pkt = (uint16_t)(R_val + 1024);
         xTaskNotifyIndexed(wheel_handle, 0, (uint32_t)L_pkt | ((uint32_t)R_pkt << 16), eSetValueWithOverwrite);
 
         /* Telemetria para a GUI Python via UART do console (115200 baud).
-         * Formato: >DATA:<sens>,<alvo_roda_L>,<alvo_roda_R>,<L_pid>,<R_pid>,<speed.L>,<speed.R>\n
+         * Formato: >DATA:<sens>,<alvo_roda_L>,<alvo_roda_R>,<lin_cmd>,<ang_cmd>,<speed.L>,<speed.R>\n
          *   sens       - 6 bits dos sensores (bit=1 => linha detectada), bit5 = parada (sonar).
          *   alvo_roda  - velocidade-alvo de cada roda (cm/s), saída da cinemática inversa.
-         *   speed      - velocidade estimada das rodas (cm/s). */
-        printf(">DATA:%u,%d,%d,%.1f,%.1f,%d,%d\n",
-               (unsigned)sens, wheel_target.l_wheel, wheel_target.r_wheel, L_pid, R_pid, speed.L, speed.R);
+         *   lin/ang_cmd  - comando do PID do corpo (v em cm/s, w em rad/s).
+         *   speed        - velocidade estimada das rodas (cm/s).
+         *   tgt_lin/ang  - setpoint do corpo (v em cm/s, w em rad/s). */
+        printf(">DATA:%u,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n",
+               (unsigned)sens, (int)wheel_target.l_wheel, (int)wheel_target.r_wheel,
+               lin_cmd, ang_cmd, speed.L, speed.R, target_lin_speed, target_ang_speed);
 
+        //wcet_end(47);
         vTaskDelay(pdMS_TO_TICKS(30));
         }
 }

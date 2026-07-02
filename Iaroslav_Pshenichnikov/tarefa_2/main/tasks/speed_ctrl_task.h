@@ -14,14 +14,14 @@ typedef struct {
 
 
 typedef struct {
-    int L;
-    int R;
+    float L;
+    float R;
 } speed_t;
 // cm/s
 
 typedef struct {
-    int l_wheel;
-    int r_wheel;
+    float l_wheel;
+    float r_wheel;
 } cinematic_t; /// Velocidades lineares das rodas, em cm/s
 
 typedef struct {

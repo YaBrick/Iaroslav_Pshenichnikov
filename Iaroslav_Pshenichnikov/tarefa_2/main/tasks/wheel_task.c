@@ -14,12 +14,13 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "wheel.h"
-
+#include "wcet.h"
 
 const static char *TAG = "wheels";
 
 portTASK_FUNCTION(wheel_ctrl, arg)
 {
+  //wcet_init(46, 47);
 	wheel_Init();
 	wheel_SetVel(100, 100);
   uint32_t packed = 0;
@@ -31,7 +32,7 @@ portTASK_FUNCTION(wheel_ctrl, arg)
 	  //printf("Left ADC: %d\n", adc_left_raw[1][0]);
 
     while(1){
-
+      //wcet_begin(46, 47);
       xTaskNotifyWaitIndexed(
             0,                  // índice do slot de notificação
             0,                  // não limpa bits na entrada
@@ -63,6 +64,7 @@ portTASK_FUNCTION(wheel_ctrl, arg)
        * Formato: >WHL:<L_signed>,<R_signed>\n */
       printf(">WHL:%d,%d\n", L_signed, R_signed);
 
+      //wcet_end(47);
       vTaskDelay(pdMS_TO_TICKS(50));
     }
 }

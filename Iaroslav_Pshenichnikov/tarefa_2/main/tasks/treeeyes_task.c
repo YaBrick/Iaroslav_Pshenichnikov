@@ -1,10 +1,13 @@
 #include "treeeyes_task.h"
 #include "wheel.h"
+#include "wcet.h"
 
 const static char *TAG = "main_app";
 
 portTASK_FUNCTION(Treeeyes, args)
 {
+    //wcet_init(46, 47);
+    const float threshold = 13.0f; //< aumentei um pouco pra ter margem de seguranca
     EventGroupHandle_t evt = (EventGroupHandle_t)args;
     TreeEyes_Init();
 	//TreeEyes_DisableLeft();
@@ -14,6 +17,7 @@ portTASK_FUNCTION(Treeeyes, args)
     char *sensor_name[] = {"left", "middle", "right"};
 	while(1)
 	{
+        //wcet_begin(46, 47);
         TreeEyes_TrigAndWait(portMAX_DELAY);
         TreeEyes_Read(&sensor[0], &sensor[1], &sensor[2]);
         
@@ -32,18 +36,29 @@ portTASK_FUNCTION(Treeeyes, args)
         float distance = (min_ticks * (1000000.0 / esp_clk_apb_freq())) / 58.0;
 
         /* Flag de parada por sonar (BIT5 do event group): levanta quando o objeto
-         * mais próximo está a menos de 10 cm; o speed_ctrl zera as velocidades. */
-        if (distance < 10.0f){
+         * mais próximo está abaixo do limiar; o speed_ctrl zera as velocidades.
+         * Para evitar liberação por falso positivo (uma leitura ruidosa acima do
+         * limiar), o flag só é derrubado após CLEAR_STREAK leituras consecutivas
+         * acima do limiar. Qualquer leitura abaixo reinicia a contagem. */
+        const int CLEAR_STREAK = 6;
+        static int clear_count = 0;
+
+        if (distance < threshold){ 
             xEventGroupSetBits(evt, BIT5);
+            clear_count = 0;
         }
-        else{
-            xEventGroupClearBits(evt, BIT5);
+        else if (clear_count < CLEAR_STREAK){
+            clear_count++;
+            if (clear_count >= CLEAR_STREAK){
+                xEventGroupClearBits(evt, BIT5);
+            }
         }
 
         ESP_LOGI(TAG, "The sensor with the nearest detected object was: %s (Distance: %.2f cm)", near_sensor_name, distance);
         //printf("The sensor with the nearest detected object was: %s (Distance: %"PRIu32" ticks)\n", near_sensor_name, min_ticks);
     
-        vTaskDelay(pdMS_TO_TICKS(100));
+        //wcet_end(47);
+        vTaskDelay(pdMS_TO_TICKS(60));
     }
 	
 }
