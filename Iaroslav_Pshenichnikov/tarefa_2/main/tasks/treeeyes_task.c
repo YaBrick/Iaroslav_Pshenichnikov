@@ -1,6 +1,7 @@
 #include "treeeyes_task.h"
 #include "wheel.h"
 #include "wcet.h"
+#include "esp_task_wdt.h"
 
 const static char *TAG = "main_app";
 
@@ -15,6 +16,13 @@ portTASK_FUNCTION(Treeeyes, args)
     ultrasonic_value_t sensor[3];
     char *near_sensor_name;
     char *sensor_name[] = {"left", "middle", "right"};
+
+    /* Inscreve este task no TWDT (uma vez, fora do loop) */
+    esp_task_wdt_add(NULL);
+
+    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    TickType_t last_wake = xTaskGetTickCount();
+
 	while(1)
 	{
         //wcet_begin(46, 47);
@@ -58,7 +66,8 @@ portTASK_FUNCTION(Treeeyes, args)
         //printf("The sensor with the nearest detected object was: %s (Distance: %"PRIu32" ticks)\n", near_sensor_name, min_ticks);
     
         //wcet_end(47);
-        vTaskDelay(pdMS_TO_TICKS(60));
+        esp_task_wdt_reset(); 
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(60));
     }
 	
 }

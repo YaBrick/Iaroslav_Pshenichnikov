@@ -1,18 +1,8 @@
-#include "freertos/FreeRTOS.h"
-#include "freertos/projdefs.h"
-#include "freertos/task.h"
+#include "wheel_task.h"
+
+#include <stdio.h>
 #include "esp_log.h"
-#include "esp_private/esp_clk.h"
-#include "driver/mcpwm_cap.h"
-#include "driver/gpio.h"
-#include "esp_timer.h"
-#include "driver/pulse_cnt.h"
-#include "bdc_motor.h"
-#include "pid_ctrl.h"
-#include "hal/gpio_types.h"
-#include "esp_adc/adc_oneshot.h"
-#include "esp_adc/adc_cali.h"
-#include "esp_adc/adc_cali_scheme.h"
+#include "esp_task_wdt.h"
 #include "wheel.h"
 #include "wcet.h"
 
@@ -21,9 +11,12 @@ const static char *TAG = "wheels";
 portTASK_FUNCTION(wheel_ctrl, arg)
 {
   //wcet_init(46, 47);
+  esp_task_wdt_add(NULL);
 	wheel_Init();
 	wheel_SetVel(100, 100);
-  uint32_t packed = 0;
+  /* Neutro (duty 0 nas duas rodas, offset 1024): sem a espera bloqueante,
+   * o primeiro ciclo pode rodar antes da primeira notificação chegar. */
+  uint32_t packed = 1024u | (1024u << 16);
 
 	uint32_t power_left_wheel, power_right_wheel; 
 
@@ -31,14 +24,22 @@ portTASK_FUNCTION(wheel_ctrl, arg)
     //printf("Left ADC: %" PRIu32 "; \t Right ADC: %" PRIu32 ".\n", power_left_wheel, power_right_wheel);
 	  //printf("Left ADC: %d\n", adc_left_raw[1][0]);
 
+    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    TickType_t last_wake = xTaskGetTickCount();
+
     while(1){
       //wcet_begin(46, 47);
-      xTaskNotifyWaitIndexed(
+      /* Poll sem bloquear (timeout 0): task estritamente periódico para o RMS.
+       * Sem notificação nova, mantém o último comando recebido em `packed`. */
+      uint32_t incoming;
+      if (xTaskNotifyWaitIndexed(
             0,                  // índice do slot de notificação
             0,                  // não limpa bits na entrada
             ULONG_MAX,          // pega o valor inteiro na saída
-            &packed,
-            portMAX_DELAY);
+            &incoming,
+            0) == pdTRUE){
+          packed = incoming;
+      }
 
       /* Recebido do speed_ctrl: duty de cada roda em ticks de PWM (com sinal, offset 1024) */
       int L_duty = (int)(packed & 0xFFFF) - 1024;
@@ -65,6 +66,7 @@ portTASK_FUNCTION(wheel_ctrl, arg)
       printf(">WHL:%d,%d\n", L_signed, R_signed);
 
       //wcet_end(47);
-      vTaskDelay(pdMS_TO_TICKS(50));
+      esp_task_wdt_reset(); 
+      vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(50));
     }
 }

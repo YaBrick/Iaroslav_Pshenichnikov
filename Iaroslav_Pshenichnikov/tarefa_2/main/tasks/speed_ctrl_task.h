@@ -57,4 +57,4 @@ body_speed_t forward_cinematic_converter(float l_wheel, float r_wheel);
 /* Converte os bits dos sensores num único estado exclusivo da linha. */
 line_state_t read_line_state(uint8_t sens);
 
-portTASK_FUNCTION(speed_ctrl, args);
+portTASK_FUNCTION_PROTO(speed_ctrl, args);

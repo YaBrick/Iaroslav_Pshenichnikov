@@ -1,37 +1,24 @@
-/*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/projdefs.h"
 #include "freertos/task.h"
-#include "esp_log.h"
-#include "esp_private/esp_clk.h"
-#include "driver/mcpwm_cap.h"
-#include "driver/gpio.h"
-#include "esp_timer.h"
-#include "driver/pulse_cnt.h"
-#include "bdc_motor.h"
-#include "pid_ctrl.h"
-#include "hal/gpio_types.h"
-#include "esp_adc/adc_oneshot.h"
-#include "esp_adc/adc_cali.h"
-#include "esp_adc/adc_cali_scheme.h"
-#include "wheel.h"
+#include <inttypes.h>
+
 #include "treeeyes_task.h"
 #include "wheel_task.h"
 #include "imu_task.h"
 #include "ir_line_task.h"
 #include "speed_ctrl_task.h"
-#include <inttypes.h>
+#include "killer_task.h"
+
+#include "task_wdt.h"
 
 #define TREE_EYES_TASK
 //#define IMU_TASK
 #define WHEEL_CTRL_TASK
 #define IR_LINE_CTRL_TASK
 #define SPEED_CTRL_TASK
+#define KILLER_TASK
+
 
 void app_main(void)
 {
@@ -57,7 +44,7 @@ static handlers_t multiple_handlers;
                 "ircontrol",
                 configMINIMAL_STACK_SIZE*3,
                 xEvents,
-                5,
+                20,
                 NULL);
 #endif
 
@@ -66,7 +53,7 @@ static handlers_t multiple_handlers;
                 "treeeyes",
                 configMINIMAL_STACK_SIZE*3,
                 xEvents,
-                6,
+                5,
                 NULL);
 #endif
 
@@ -84,7 +71,7 @@ static handlers_t multiple_handlers;
                 "wheel",
                 configMINIMAL_STACK_SIZE*3,
                 xEvents,
-                5,
+                10,
                 &wheel_handle);
 #endif
 
@@ -95,7 +82,16 @@ static handlers_t multiple_handlers;
                 "speed",
                 configMINIMAL_STACK_SIZE*3,
                 &multiple_handlers,
-                5,
+                15,
+                NULL);
+#endif
+
+#ifdef KILLER_TASK
+    xTaskCreate(killer,
+                "killer",
+                configMINIMAL_STACK_SIZE*3,
+                NULL,
+                30,
                 NULL);
 #endif
 

@@ -1,11 +1,8 @@
-#include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "ir_line_task.h"
+
 #include "driver/gpio.h"
 #include "esp_log.h"
-#include "sdkconfig.h"
-#include "ir_line_task.h"
-#include "soc/gpio_reg.h"
+#include "esp_task_wdt.h"
 #include "wcet.h"
 
 static const char *TAG = "IR_Line";
@@ -26,6 +23,7 @@ static const char *TAG = "IR_Line";
 portTASK_FUNCTION(ir_line_ctrl, args)
 {
     //wcet_init(46, 47);
+    esp_task_wdt_add(NULL);
     gpio_config_t ir_line_config = {
         .pin_bit_mask = INFRA_RED_OUT_GPIO_MASK,
         .mode         = GPIO_MODE_INPUT,
@@ -37,6 +35,9 @@ portTASK_FUNCTION(ir_line_ctrl, args)
     EventGroupHandle_t evt = (EventGroupHandle_t)args;
 
     uint32_t gpioValue = 0;
+
+    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    TickType_t last_wake = xTaskGetTickCount();
 
     while (1) {
         //wcet_begin(46, 47);
@@ -53,6 +54,7 @@ portTASK_FUNCTION(ir_line_ctrl, args)
 		xEventGroupSetBits(evt, gpioValue);
 		//ESP_LOGI(TAG, "%lu", xEventGroupGetBits(evt));
         //wcet_end(47);
-        vTaskDelay(pdMS_TO_TICKS(20));
+        esp_task_wdt_reset(); 
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(20));
     }
 }

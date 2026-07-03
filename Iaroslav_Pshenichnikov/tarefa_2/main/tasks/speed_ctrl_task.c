@@ -1,13 +1,12 @@
-#include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/gpio.h"
-#include "esp_log.h"
-#include "sdkconfig.h"
-#include "wheel.h"
-#include "esp_timer.h"
 #include "speed_ctrl_task.h"
+
+#include <stdio.h>
+#include "driver/gpio.h"    // macros BIT0..BIT5
+#include "esp_log.h"
+#include "esp_task_wdt.h"
+#include "esp_timer.h"
 #include "pid_ctrl.h"
+#include "wheel.h"
 #include "wcet.h"
 
 const static char *TAG = "speed_ctrl";
@@ -86,6 +85,7 @@ line_state_t read_line_state(uint8_t sens){
 portTASK_FUNCTION(speed_ctrl, args)
 {
     //wcet_init(46, 47);
+    esp_task_wdt_add(NULL);
     /* Único PID de velocidade linear do corpo. Saída em cm/s (máx ~16 cm/s).
      * kd pequeno: a velocidade medida é quantizada/ruidosa, derivada alta amplifica ruído. */
     pid_ctrl_config_t pid_linear_speed_config = {
@@ -131,6 +131,9 @@ portTASK_FUNCTION(speed_ctrl, args)
 
     ESP_ERROR_CHECK(pid_new_control_block(&pid_linear_speed_config,  &linear_pid_block));
     ESP_ERROR_CHECK(pid_new_control_block(&pid_angular_speed_config, &angular_pid_block));
+
+    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    TickType_t last_wake = xTaskGetTickCount();
 
     while(1){
       //wcet_begin(46, 47);
@@ -214,6 +217,7 @@ portTASK_FUNCTION(speed_ctrl, args)
                lin_cmd, ang_cmd, speed.L, speed.R, target_lin_speed, target_ang_speed);
 
         //wcet_end(47);
-        vTaskDelay(pdMS_TO_TICKS(30));
+        esp_task_wdt_reset(); 
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(30));
         }
 }

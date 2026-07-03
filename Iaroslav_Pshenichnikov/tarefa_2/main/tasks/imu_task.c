@@ -1,7 +1,7 @@
-#include "freertos/Freertos.h"
-#include "freertos/task.h"
-#include "mpu6050.h"
+#include "imu_task.h"
+
 #include "esp_log.h"
+#include "mpu6050.h"
 
 #define I2C_MASTER_SDA_GPIO GPIO_NUM_40
 #define I2C_MASTER_SCL_GPIO GPIO_NUM_39
@@ -22,6 +22,9 @@ portTASK_FUNCTION(IMU_Task, arg)
     // Estrutura para armazenar os dados lidos
     mpu6050_data_t data;
 
+    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    TickType_t last_wake = xTaskGetTickCount();
+
     while (1)
     {
         // Lê os dados do sensor
@@ -38,6 +41,6 @@ portTASK_FUNCTION(IMU_Task, arg)
             ESP_LOGE("IMU", "Failed to read data");
         }
 
-        vTaskDelay(pdMS_TO_TICKS(500));  // Atraso de 500
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(500));  // Atraso de 500
     }
 }

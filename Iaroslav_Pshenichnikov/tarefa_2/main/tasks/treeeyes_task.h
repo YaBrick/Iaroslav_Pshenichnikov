@@ -9,4 +9,4 @@
 #include "treeeyes.h"
 #include <inttypes.h>
 
-portTASK_FUNCTION(Treeeyes, args);
+portTASK_FUNCTION_PROTO(Treeeyes, args);
