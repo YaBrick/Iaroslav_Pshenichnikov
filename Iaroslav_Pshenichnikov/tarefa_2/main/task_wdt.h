@@ -1,9 +1,9 @@
 #include "wheel.h"
 
-/* Chamado do contexto de INTERRUPÇÃO do TWDT: apenas ações mínimas e não
- * bloqueantes (escritas de registrador). wheel_Init() já foi feito no app_main —
- * refazê-lo aqui (mallocs/mutexes em ISR) causaria crash. Sinalização de pânico:
- * o robô gira em torno do próprio eixo. */
+/* Chamado do contexto de INTERRUPCAO do TWDT: apenas acoes minimas e nao
+ * bloqueantes (escritas de registrador). wheel_Init() ja foi feito no app_main -
+ * refaze-lo aqui (mallocs/mutexes em ISR) causaria crash. Sinalizacao de panico:
+ * o robo gira em torno do proprio eixo. */
 void esp_task_wdt_isr_user_handler(void){
     wheel_GoForward();
     right_wheel_GoBackward();

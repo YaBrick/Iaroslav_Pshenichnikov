@@ -22,12 +22,12 @@ portTASK_FUNCTION(IMU_Task, arg)
     // Estrutura para armazenar os dados lidos
     mpu6050_data_t data;
 
-    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    /* Periodo fixo (RMS): vTaskDelayUntil mantem T constante, sem drift */
     TickType_t last_wake = xTaskGetTickCount();
 
     while (1)
     {
-        // Lê os dados do sensor
+        // Le os dados do sensor
         ret = mpu6050_read_data(I2C_NUM, &data);
         if (ret == ESP_OK)
         {

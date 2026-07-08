@@ -17,9 +17,9 @@ speed_t speed_estimator(void){
     const float estimated_increment = 11.63f; // obtido empiricamente
     wheel_GetEndoderPulses(&pL, &pR);
 
-    /* dt em microssegundos (sem arredondar para ms) e cálculo em float:
-     * elimina a quantização da velocidade. A constante continua válida pois
-     * Δp*inc*1000/dt_us == Δp*inc/dt_ms. */
+    /* dt em microssegundos (sem arredondar para ms) e calculo em float:
+     * elimina a quantizacao da velocidade. A constante continua valida pois
+     * deltap*inc*1000/dt_us == deltap*inc/dt_ms. */
     int64_t now_us = esp_timer_get_time();
     static int64_t last_us = 0;
     int64_t dt_us = now_us - last_us;
@@ -38,10 +38,10 @@ speed_t speed_estimator(void){
 
 
 
-/* Cinemática inversa: velocidades do corpo (v [cm/s], w [rad/s]) → velocidades
+/* Cinematica inversa: velocidades do corpo (v [cm/s], w [rad/s]) -> velocidades
  * lineares das rodas [cm/s]. d = WHEEL_HALF_TRACK_CM (meia-bitola).
  *   v_L = v + w*d ; v_R = v - w*d
- * (w positivo => roda esquerda mais rápida => giro à direita) */
+ * (w positivo => roda esquerda mais rapida => giro a direita) */
 cinematic_t inverse_cinematic_converter(float _target_lin_speed, float _target_ang_speed){
     cinematic_t Cinematic;
     Cinematic.l_wheel = _target_lin_speed + (_target_ang_speed * WHEEL_HALF_TRACK_CM);
@@ -49,8 +49,8 @@ cinematic_t inverse_cinematic_converter(float _target_lin_speed, float _target_a
     return Cinematic;
 }
 
-/* Cinemática direta: velocidades lineares das rodas [cm/s] → velocidades do corpo.
- * É exatamente a inversa de inverse_cinematic_converter():
+/* Cinematica direta: velocidades lineares das rodas [cm/s] -> velocidades do corpo.
+ * E exatamente a inversa de inverse_cinematic_converter():
  *   v = (v_L + v_R) / 2          [cm/s]
  *   w = (v_L - v_R) / (2*d)      [rad/s]   (rad = cm/cm, adimensional) */
 body_speed_t forward_cinematic_converter(float l_wheel, float r_wheel){
@@ -60,22 +60,22 @@ body_speed_t forward_cinematic_converter(float l_wheel, float r_wheel){
     return body;
 }
 
-/* Converte os 5 bits dos sensores de linha num único estado exclusivo.
- * Reconhece as 5 posições simples e as 4 intermediárias (dois sensores
- * adjacentes). Qualquer outro padrão (0, não adjacentes, 3+ sensores) → LINE_LOST. */
+/* Converte os 5 bits dos sensores de linha num unico estado exclusivo.
+ * Reconhece as 5 posicoes simples e as 4 intermediarias (dois sensores
+ * adjacentes). Qualquer outro padrao (0, nao adjacentes, 3+ sensores) -> LINE_LOST. */
 line_state_t read_line_state(uint8_t sens){
     uint8_t s = sens & 0x1F;          // apenas os 5 sensores de linha (BIT0..BIT4)
 
-    if (s == 0) return LINE_LOST;     // só "perdido" quando NENHUM sensor vê a linha
+    if (s == 0) return LINE_LOST;     // so "perdido" quando NENHUM sensor ve a linha
 
-    /* Centróide dos sensores ativos: posição média em [0..4] (0=esq, 4=dir).
-     * Robusto a 3+ sensores (linha grossa) e a padrões fora dos 9 casos exatos. */
+    /* Centroide dos sensores ativos: posicao media em [0..4] (0=esq, 4=dir).
+     * Robusto a 3+ sensores (linha grossa) e a padroes fora dos 9 casos exatos. */
     int sum = 0, count = 0;
     for (int i = 0; i < 5; i++){
         if (s & (1 << i)){ sum += i; count++; }
     }
 
-    /* idx em [0..8] (passos de 0.5 do centróide) → estados LINE_L_DISTANT..LINE_R_DISTANT */
+    /* idx em [0..8] (passos de 0.5 do centroide) -> estados LINE_L_DISTANT..LINE_R_DISTANT */
     int idx = (int)(((float)sum / count) * 2.0f + 0.5f);   // arredonda
     if (idx > 8) idx = 8;
     return (line_state_t)(LINE_L_DISTANT + idx);
@@ -86,8 +86,8 @@ portTASK_FUNCTION(speed_ctrl, args)
 {
     //wcet_init(46, 47);
     esp_task_wdt_add(NULL);
-    /* Único PID de velocidade linear do corpo. Saída em cm/s (máx ~16 cm/s).
-     * kd pequeno: a velocidade medida é quantizada/ruidosa, derivada alta amplifica ruído. */
+    /* Unico PID de velocidade linear do corpo. Saida em cm/s (max ~16 cm/s).
+     * kd pequeno: a velocidade medida e quantizada/ruidosa, derivada alta amplifica ruido. */
     pid_ctrl_config_t pid_linear_speed_config = {
         .init_param = {
         .kp = 0.8,
@@ -101,8 +101,8 @@ portTASK_FUNCTION(speed_ctrl, args)
         }
     };
 
-    /* Nível alto: velocidade angular do corpo. Saída em rad/s.
-     * Com v_roda máx ~16 cm/s e d=10 cm: w_máx ≈ 32/(2*10) ≈ 1.6 rad/s. */
+    /* Nivel alto: velocidade angular do corpo. Saida em rad/s.
+     * Com v_roda max ~16 cm/s e d=10 cm: w_max ~ 32/(2*10) ~ 1.6 rad/s. */
     pid_ctrl_config_t pid_angular_speed_config = {
         .init_param = {
         .kp = 0.4,
@@ -125,14 +125,14 @@ portTASK_FUNCTION(speed_ctrl, args)
     int eventBits;
     volatile float target_lin_speed, target_ang_speed = 0;
 
-    /* Único nível: PID de velocidade linear/angular do corpo */
+    /* Unico nivel: PID de velocidade linear/angular do corpo */
     pid_ctrl_block_handle_t linear_pid_block;
     pid_ctrl_block_handle_t angular_pid_block;
 
     ESP_ERROR_CHECK(pid_new_control_block(&pid_linear_speed_config,  &linear_pid_block));
     ESP_ERROR_CHECK(pid_new_control_block(&pid_angular_speed_config, &angular_pid_block));
 
-    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    /* Periodo fixo (RMS): vTaskDelayUntil mantem T constante, sem drift */
     TickType_t last_wake = xTaskGetTickCount();
 
     while(1){
@@ -141,23 +141,23 @@ portTASK_FUNCTION(speed_ctrl, args)
       eventBits = xEventGroupGetBits(evt);
       speed = speed_estimator();
 
-      /* Inverte só os 5 sensores de linha (ativos em baixo => bit=1 = linha detectada).
-       * O BIT5 (flag de parada do sonar) é ativo em alto, então é mantido sem inversão. */
+      /* Inverte so os 5 sensores de linha (ativos em baixo => bit=1 = linha detectada).
+       * O BIT5 (flag de parada do sonar) e ativo em alto, entao e mantido sem inversao. */
       uint8_t sens = (~eventBits & 0x1F) | (eventBits & BIT5);
 
-      /* Estado da linha: exclusivo, inclui posições intermediárias (2 sensores) */
+      /* Estado da linha: exclusivo, inclui posicoes intermediarias (2 sensores) */
       line_state_t line = read_line_state(sens);
 
       bool sonar_stop = (sens & BIT5) != 0;
 
         /* === Setpoint do corpo a partir do estado (exclusivo) da linha ===
-         * Linha à esquerda => virar à esquerda (w < 0, pois w > 0 gira à direita).
+         * Linha a esquerda => virar a esquerda (w < 0, pois w > 0 gira a direita).
          * Quanto mais longe do centro, maior |w| e menor a velocidade linear. */
-        const float V_MAX  = 12.0f;   // velocidade linear máxima (cm/s)
-        const float W_STEP = 0.4f;    // passo de velocidade angular por nível (rad/s)
+        const float V_MAX  = 12.0f;   // velocidade linear maxima (cm/s)
+        const float W_STEP = 0.4f;    // passo de velocidade angular por nivel (rad/s)
 
         /* Setpoint a partir do estado da linha (LINE_LOST cai no default => pos=0 => reto).
-         * Calculado sempre, mesmo parado, para os gráficos ficarem coerentes. */
+         * Calculado sempre, mesmo parado, para os graficos ficarem coerentes. */
         int pos;
         switch (line){
             case LINE_L_DISTANT:     pos = -5; break;
@@ -172,12 +172,12 @@ portTASK_FUNCTION(speed_ctrl, args)
             default:                 pos =  0; break;
         }
         int dist = (pos < 0) ? -pos : pos;
-        target_ang_speed = pos * W_STEP;                  // gira na direção da linha
+        target_ang_speed = pos * W_STEP;                  // gira na direcao da linha
         target_lin_speed = V_MAX * (1.0f - 0.15f * dist); // mais devagar nas curvas
 
-        /* === Nível alto: PID de velocidade linear/angular do corpo ===
-         * Se o sonar levanta a flag de parada, CONGELAMOS o PID: não chamamos
-         * pid_compute (preserva integral, erros e saída anteriores) e mandamos 0
+        /* === Nivel alto: PID de velocidade linear/angular do corpo ===
+         * Se o sonar levanta a flag de parada, CONGELAMOS o PID: nao chamamos
+         * pid_compute (preserva integral, erros e saida anteriores) e mandamos 0
          * aos motores. Assim, ao retomar (ex.: no meio de uma curva fechada) o
          * controle continua de onde parou, sem zerar o comando angular. */
         float lin_cmd = 0, ang_cmd = 0;
@@ -189,16 +189,16 @@ portTASK_FUNCTION(speed_ctrl, args)
             pid_compute(linear_pid_block,  (target_lin_speed - measured.linear),  &lin_cmd);
             pid_compute(angular_pid_block, (target_ang_speed - measured.angular), &ang_cmd);
 
-            /* Cinemática inversa: comando (lin, ang) → velocidades-alvo das rodas [cm/s] */
+            /* Cinematica inversa: comando (lin, ang) -> velocidades-alvo das rodas [cm/s] */
             wheel_target = inverse_cinematic_converter(lin_cmd, ang_cmd);
 
-            /* cm/s → ticks de PWM: multiplica em float antes de truncar (duty fino);
-             * o clamp em ±400 fica no wheel_task. */
-            const int common_speed_mult = 25;   // ±16 cm/s → ±400
+            /* cm/s -> ticks de PWM: multiplica em float antes de truncar (duty fino);
+             * o clamp em +-400 fica no wheel_task. */
+            const int common_speed_mult = 25;   // +-16 cm/s -> +-400
             L_val = (int)(common_speed_mult * wheel_target.l_wheel);
             R_val = (int)(common_speed_mult * wheel_target.r_wheel);
         }
-        /* sonar_stop: L_val=R_val=0 e PID congelado (pid_compute não foi chamado) */
+        /* sonar_stop: L_val=R_val=0 e PID congelado (pid_compute nao foi chamado) */
 
         ///Preparando sinal para enviar no wheel_task.c
         uint16_t L_pkt = (uint16_t)(L_val + 1024);   // + 1024: transmite o sinal como unsigned
@@ -208,7 +208,7 @@ portTASK_FUNCTION(speed_ctrl, args)
         /* Telemetria para a GUI Python via UART do console (115200 baud).
          * Formato: >DATA:<sens>,<alvo_roda_L>,<alvo_roda_R>,<lin_cmd>,<ang_cmd>,<speed.L>,<speed.R>\n
          *   sens       - 6 bits dos sensores (bit=1 => linha detectada), bit5 = parada (sonar).
-         *   alvo_roda  - velocidade-alvo de cada roda (cm/s), saída da cinemática inversa.
+         *   alvo_roda  - velocidade-alvo de cada roda (cm/s), saida da cinematica inversa.
          *   lin/ang_cmd  - comando do PID do corpo (v em cm/s, w em rad/s).
          *   speed        - velocidade estimada das rodas (cm/s).
          *   tgt_lin/ang  - setpoint do corpo (v em cm/s, w em rad/s). */

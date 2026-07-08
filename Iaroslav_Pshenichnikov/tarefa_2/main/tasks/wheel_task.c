@@ -12,25 +12,25 @@ portTASK_FUNCTION(wheel_ctrl, arg)
 {
   //wcet_init(46, 47);
   esp_task_wdt_add(NULL);
-  /* wheel_Init() agora é feito no app_main, antes da criação dos tasks */
+  /* wheel_Init() agora e feito no app_main, antes da criacao dos tasks */
 	
     /* Neutro (duty 0 nas duas rodas, offset 1024): sem a espera bloqueante,
-   * o primeiro ciclo pode rodar antes da primeira notificação chegar. */
+   * o primeiro ciclo pode rodar antes da primeira notificacao chegar. */
   wheel_SetVel(0, 0);
   uint32_t packed = 1024u | (1024u << 16);
 
-    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    /* Periodo fixo (RMS): vTaskDelayUntil mantem T constante, sem drift */
     TickType_t last_wake = xTaskGetTickCount();
 
     while(1){
       //wcet_begin(46, 47);
-      /* Poll sem bloquear (timeout 0): task estritamente periódico para o RMS.
-       * Sem notificação nova, mantém o último comando recebido em `packed`. */
+      /* Poll sem bloquear (timeout 0): task estritamente periodico para o RMS.
+       * Sem notificacao nova, mantem o ultimo comando recebido em `packed`. */
       uint32_t incoming;
       if (xTaskNotifyWaitIndexed(
-            0,                  // índice do slot de notificação
-            0,                  // não limpa bits na entrada
-            ULONG_MAX,          // pega o valor inteiro na saída
+            0,                  // indice do slot de notificacao
+            0,                  // nao limpa bits na entrada
+            ULONG_MAX,          // pega o valor inteiro na saida
             &incoming,
             0) == pdTRUE){
           packed = incoming;
@@ -40,11 +40,11 @@ portTASK_FUNCTION(wheel_ctrl, arg)
       int L_duty = (int)(packed & 0xFFFF) - 1024;
       int R_duty = (int)(packed >> 16)    - 1024;
 
-      /* Limita à faixa do motor (±400 ticks) */
+      /* Limita a faixa do motor (+-400 ticks) */
       if(L_duty >  400){ L_duty =  400; }   if(L_duty < -400){ L_duty = -400; }
       if(R_duty >  400){ R_duty =  400; }   if(R_duty < -400){ R_duty = -400; }
 
-      /* Valores com sinal, em ticks, como serão aplicados (para a telemetria) */
+      /* Valores com sinal, em ticks, como serao aplicados (para a telemetria) */
       int L_signed = L_duty, R_signed = R_duty;
 
       /* O sinal define o sentido; a magnitude vai para o PWM */
@@ -55,7 +55,7 @@ portTASK_FUNCTION(wheel_ctrl, arg)
 
       //ESP_LOGI(TAG, "L=%d  R=%d", L_signed, R_signed);
 
-      /* Telemetria para a GUI Python: valores já decodificados (com sinal),
+      /* Telemetria para a GUI Python: valores ja decodificados (com sinal),
        * em ticks de PWM, exatamente como aplicados aos motores.
        * Formato: >WHL:<L_signed>,<R_signed>\n */
       printf(">WHL:%d,%d\n", L_signed, R_signed);

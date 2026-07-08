@@ -36,12 +36,12 @@ portTASK_FUNCTION(ir_line_ctrl, args)
 
     uint32_t gpioValue = 0;
 
-    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    /* Periodo fixo (RMS): vTaskDelayUntil mantem T constante, sem drift */
     TickType_t last_wake = xTaskGetTickCount();
 
     while (1) {
         //wcet_begin(46, 47);
-        /* Lê os sensores — o sensor dá 0 quando a linha é detectada */
+        /* Le os sensores - o sensor da 0 quando a linha e detectada */
         gpioValue = (uint8_t)(
             (uint8_t)gpio_get_level(INFRA_RED_VERY_LEFT_GPIO)       |
             (uint8_t)gpio_get_level(INFRA_RED_LEFT_GPIO)        << 1 |

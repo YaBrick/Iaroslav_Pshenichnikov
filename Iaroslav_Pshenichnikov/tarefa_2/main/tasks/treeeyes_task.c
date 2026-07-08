@@ -20,7 +20,7 @@ portTASK_FUNCTION(Treeeyes, args)
     /* Inscreve este task no TWDT (uma vez, fora do loop) */
     esp_task_wdt_add(NULL);
 
-    /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
+    /* Periodo fixo (RMS): vTaskDelayUntil mantem T constante, sem drift */
     TickType_t last_wake = xTaskGetTickCount();
 
 	while(1)
@@ -44,9 +44,9 @@ portTASK_FUNCTION(Treeeyes, args)
         float distance = (min_ticks * (1000000.0 / esp_clk_apb_freq())) / 58.0;
 
         /* Flag de parada por sonar (BIT5 do event group): levanta quando o objeto
-         * mais próximo está abaixo do limiar; o speed_ctrl zera as velocidades.
-         * Para evitar liberação por falso positivo (uma leitura ruidosa acima do
-         * limiar), o flag só é derrubado após CLEAR_STREAK leituras consecutivas
+         * mais proximo esta abaixo do limiar; o speed_ctrl zera as velocidades.
+         * Para evitar liberacao por falso positivo (uma leitura ruidosa acima do
+         * limiar), o flag so e derrubado apos CLEAR_STREAK leituras consecutivas
          * acima do limiar. Qualquer leitura abaixo reinicia a contagem. */
         const int CLEAR_STREAK = 6;
         static int clear_count = 0;
