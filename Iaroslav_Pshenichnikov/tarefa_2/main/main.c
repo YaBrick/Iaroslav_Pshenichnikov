@@ -39,6 +39,11 @@ TaskHandle_t wheel_handle = NULL;
 
 static handlers_t multiple_handlers;
 
+/* Hardware das rodas (MCPWM/PCNT/ADC) inicializado ANTES dos tasks:
+ * - speed_ctrl lê encoders já no primeiro ciclo (sem corrida com o wheel_task);
+ * - o handler do TWDT pode comandar os motores sem precisar de init no ISR. */
+wheel_Init();
+
 #ifdef IR_LINE_CTRL_TASK
     xTaskCreate(ir_line_ctrl,
                 "ircontrol",

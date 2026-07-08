@@ -12,17 +12,12 @@ portTASK_FUNCTION(wheel_ctrl, arg)
 {
   //wcet_init(46, 47);
   esp_task_wdt_add(NULL);
-	wheel_Init();
-	wheel_SetVel(100, 100);
-  /* Neutro (duty 0 nas duas rodas, offset 1024): sem a espera bloqueante,
+  /* wheel_Init() agora é feito no app_main, antes da criação dos tasks */
+	
+    /* Neutro (duty 0 nas duas rodas, offset 1024): sem a espera bloqueante,
    * o primeiro ciclo pode rodar antes da primeira notificação chegar. */
+  wheel_SetVel(0, 0);
   uint32_t packed = 1024u | (1024u << 16);
-
-	uint32_t power_left_wheel, power_right_wheel; 
-
-    //wheel_GetPower(&power_left_wheel, &power_right_wheel);
-    //printf("Left ADC: %" PRIu32 "; \t Right ADC: %" PRIu32 ".\n", power_left_wheel, power_right_wheel);
-	  //printf("Left ADC: %d\n", adc_left_raw[1][0]);
 
     /* Período fixo (RMS): vTaskDelayUntil mantém T constante, sem drift */
     TickType_t last_wake = xTaskGetTickCount();
