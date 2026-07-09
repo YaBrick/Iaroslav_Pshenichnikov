@@ -248,29 +248,28 @@ int wheel_Init( void )
     return 1;
 }
 
+/* Tirei ESP_LOG nestas funcoes - elas sao chamadas do handler do TWDT
+ * (contexto de interrupcao) e o log usa mutex da newlib -> gera abort() em ISR.
+ * Alem disso, o wheel_task as chama a cada ciclo (o log viraria spam na UART). */
 void wheel_GoForward( void )
 {
-	ESP_LOGI(WHEEL_TAG, "Forward motors");
     ESP_ERROR_CHECK(bdc_motor_forward(motor_left));
     ESP_ERROR_CHECK(bdc_motor_forward(motor_right));
 }
 
 void wheel_GoBackward( void )
 {
-	ESP_LOGI(WHEEL_TAG, "Backward motors");
 	ESP_ERROR_CHECK(bdc_motor_reverse(motor_left));
 	ESP_ERROR_CHECK(bdc_motor_reverse(motor_right));
 }
 
 void left_wheel_GoBackward( void )
 {
-	ESP_LOGI(WHEEL_TAG, "Backward only left motor");
     ESP_ERROR_CHECK(bdc_motor_reverse(motor_left));
 }
 
 void right_wheel_GoBackward( void )
 {
-	ESP_LOGI(WHEEL_TAG, "Backward only left motor");
     ESP_ERROR_CHECK(bdc_motor_reverse(motor_right));
 }
 

@@ -217,7 +217,7 @@ portTASK_FUNCTION(speed_ctrl, args)
                lin_cmd, ang_cmd, speed.L, speed.R, target_lin_speed, target_ang_speed);
 
         //wcet_end(47);
-        esp_task_wdt_reset(); 
+        //esp_task_wdt_reset(); 
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(30));
         }
 }

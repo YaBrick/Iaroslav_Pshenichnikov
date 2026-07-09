@@ -9,15 +9,14 @@
 #include "ir_line_task.h"
 #include "speed_ctrl_task.h"
 #include "killer_task.h"
-
-#include "task_wdt.h"
+#include "wdt_handler_task.h"
 
 #define TREE_EYES_TASK
 //#define IMU_TASK
 #define WHEEL_CTRL_TASK
 #define IR_LINE_CTRL_TASK
 #define SPEED_CTRL_TASK
-#define KILLER_TASK
+//#define KILLER_TASK
 
 
 void app_main(void)
@@ -36,8 +35,11 @@ void app_main(void)
 */    
 EventGroupHandle_t xEvents = xEventGroupCreate();
 TaskHandle_t wheel_handle = NULL;
+TaskHandle_t speed_handle = NULL;
 
 static handlers_t multiple_handlers;
+/* static: lido pelo wdt_handler depois que app_main retorna */
+static wdt_targets_t wdt_targets;
 
 /* Hardware das rodas (MCPWM/PCNT/ADC) inicializado ANTES dos tasks:
  * - speed_ctrl le encoders ja no primeiro ciclo (sem corrida com o wheel_task);
@@ -88,15 +90,26 @@ wheel_Init();
                 configMINIMAL_STACK_SIZE*3,
                 &multiple_handlers,
                 15,
-                NULL);
+                &speed_handle);
 #endif
+
+    /* Handler do TWDT: prioridade alta (fica bloqueado ate a ISR notificar).
+     * Ao disparar, suspende speed_ctrl/wheel e gira o robo em torno do eixo. */
+    wdt_targets.speed = speed_handle;
+    wdt_targets.wheel = wheel_handle;
+    xTaskCreate(wdt_handler,
+                "wdt_handler",
+                configMINIMAL_STACK_SIZE*3,
+                &wdt_targets,
+                24,
+                NULL);
 
 #ifdef KILLER_TASK
     xTaskCreate(killer,
                 "killer",
                 configMINIMAL_STACK_SIZE*3,
                 NULL,
-                30,
+                24,
                 NULL);
 #endif
 
