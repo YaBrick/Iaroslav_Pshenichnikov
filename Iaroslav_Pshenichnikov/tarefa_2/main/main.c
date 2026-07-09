@@ -8,7 +8,6 @@
 #include "imu_task.h"
 #include "ir_line_task.h"
 #include "speed_ctrl_task.h"
-#include "killer_task.h"
 #include "wdt_handler_task.h"
 
 #define TREE_EYES_TASK
@@ -16,7 +15,6 @@
 #define WHEEL_CTRL_TASK
 #define IR_LINE_CTRL_TASK
 #define SPEED_CTRL_TASK
-//#define KILLER_TASK
 
 
 void app_main(void)
@@ -103,14 +101,5 @@ wheel_Init();
                 &wdt_targets,
                 24,
                 NULL);
-
-#ifdef KILLER_TASK
-    xTaskCreate(killer,
-                "killer",
-                configMINIMAL_STACK_SIZE*3,
-                NULL,
-                24,
-                NULL);
-#endif
 
 }
