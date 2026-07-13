@@ -1,18 +1,17 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/projdefs.h"
 #include "freertos/task.h"
+#include "esp_task_wdt.h"
 #include <inttypes.h>
 
 #include "treeeyes_task.h"
 #include "wheel_task.h"
-#include "imu_task.h"
 #include "ir_line_task.h"
 #include "speed_ctrl_task.h"
 #include "wdt_handler_task.h"
 #include "wheel.h"
 
 #define TREE_EYES_TASK
-//#define IMU_TASK
 #define WHEEL_CTRL_TASK
 #define IR_LINE_CTRL_TASK
 #define SPEED_CTRL_TASK
@@ -63,15 +62,6 @@ wheel_Init();
                 NULL);
 #endif
 
-#ifdef IMU_TASK
-    xTaskCreate(IMU_Task,
-                "imu",
-                configMINIMAL_STACK_SIZE*3,
-                NULL,
-                5,
-                NULL);
-#endif
-
 #ifdef WHEEL_CTRL_TASK
     xTaskCreate(wheel_ctrl,
                 "wheel",
@@ -102,5 +92,14 @@ wheel_Init();
                 &wdt_targets,
                 24,
                 NULL);
+
+
+    esp_task_wdt_config_t twdt_config = {
+        .timeout_ms = 80,                        
+        .idle_core_mask = BIT(0) | BIT(1),        
+        .trigger_panic = false,                   
+    };
+    ESP_ERROR_CHECK(esp_task_wdt_reconfigure(&twdt_config));
+
 
 }

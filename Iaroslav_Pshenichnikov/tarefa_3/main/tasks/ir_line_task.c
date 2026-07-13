@@ -7,6 +7,17 @@
 
 static const char *TAG = "IR_Line";
 
+/* Mapeamento sensor -> bit publicado no event group xEvents
+ * (robo visto de cima, frente para cima):
+ *
+ *              frente do robo
+ *   ===========================================
+ *   [very_left] [left] [middle] [right] [very_right]
+ *     GPIO15    GPIO16  GPIO17  GPIO18    GPIO8
+ *      BIT0      BIT1    BIT2    BIT3      BIT4
+ *   ===========================================
+ *   esquerda  <------------------------>  direita
+ */
 #define INFRA_RED_VERY_LEFT_GPIO    GPIO_NUM_15
 #define INFRA_RED_LEFT_GPIO         GPIO_NUM_16
 #define INFRA_RED_MIDDLE_GPIO       GPIO_NUM_17
@@ -24,6 +35,8 @@ portTASK_FUNCTION(ir_line_ctrl, args)
 {
     //wcet_init(46, 47);
     esp_task_wdt_add(NULL);
+
+    
     gpio_config_t ir_line_config = {
         .pin_bit_mask = INFRA_RED_OUT_GPIO_MASK,
         .mode         = GPIO_MODE_INPUT,
