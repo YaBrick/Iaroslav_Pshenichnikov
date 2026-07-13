@@ -48,3 +48,12 @@ Como U ≈ 7.6 % é muito menor que o limite de Liu & Layland para n=4 (75.7 %),
 4. treeeyes
 
 Períodos de ativação das tarefas foram escolhidos de acordo com cinematica do robô e funcionamento do PID - por exemplo
+
+## Diagrama UML de comunicação entre as tasks 
+
+<img src="img/diagrama_tasks.png" width="100%" />
+
+- `ir_line_ctrl` e `treeeyes` são os **produtores**: escrevem o estado dos sensores no event group `xEvents`.
+- `speed_ctrl` é o **consumidor** do `xEvents`: lê os bits, calcula o PID e envia o comando de duty ao `wheel_ctrl` via task notification (valor de 32 bits: 16 bits por roda, com offset +1024 para transmitir o sinal).
+- `wheel_ctrl` faz poll da notificação com timeout 0 (mantém-se estritamente periódico); sem notificação nova, reaplica o último comando.
+- A ISR do TWDT apenas **notifica** o `wdt_handler` (trabalho pesado não é permitido em ISR); o handler suspende `speed_ctrl`/`wheel_ctrl` e gira o robô em torno do próprio eixo.

@@ -1,0 +1,126 @@
+<mxfile host="app.diagrams.net" agent="claude" version="24.0.0">
+  <diagram name="Diagrama de comunicacao (UML)" id="tasks-comm-uml">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1450" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ================= Objetos (notacao UML: nome sublinhado, slots) ================= -->
+
+        <!-- ir_line_ctrl -->
+        <mxCell id="ir" value="&#171;active&#187;&lt;br&gt;&lt;u&gt;ir_line_ctrl : Task&lt;/u&gt;" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ir_slots" value="prio = 20&lt;br&gt;T = 15 ms&lt;br&gt;entrada: 5 sensores IR (GPIO)" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="ir">
+          <mxGeometry x="0" y="40" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Treeeyes -->
+        <mxCell id="tree" value="&#171;active&#187;&lt;br&gt;&lt;u&gt;treeeyes : Task&lt;/u&gt;" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="tree_slots" value="prio = 5&lt;br&gt;T = 60 ms&lt;br&gt;entrada: 3 sonares ultrass&#244;nicos" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="tree">
+          <mxGeometry x="0" y="40" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- xEvents -->
+        <mxCell id="evt" value="&lt;u&gt;xEvents : EventGroup&lt;/u&gt;" style="swimlane;html=1;rounded=0;startSize=26;horizontal=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="420" y="210" width="270" height="96" as="geometry" />
+        </mxCell>
+        <mxCell id="evt_slots" value="BIT0..BIT4 = sensores IR de linha&lt;br&gt;BIT5 = parada por sonar (&amp;lt; 13 cm)" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="evt">
+          <mxGeometry x="0" y="26" width="270" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- speed_ctrl -->
+        <mxCell id="speed" value="&#171;active&#187;&lt;br&gt;&lt;u&gt;speed_ctrl : Task&lt;/u&gt;" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="820" y="203" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="speed_slots" value="prio = 15&lt;br&gt;T = 30 ms&lt;br&gt;PID linear + angular do corpo" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="speed">
+          <mxGeometry x="0" y="40" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- wheel_ctrl -->
+        <mxCell id="wheel" value="&#171;active&#187;&lt;br&gt;&lt;u&gt;wheel_ctrl : Task&lt;/u&gt;" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="203" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="wheel_slots" value="prio = 10&lt;br&gt;T = 60 ms&lt;br&gt;aplica duty PWM aos motores" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="wheel">
+          <mxGeometry x="0" y="40" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ISR TWDT -->
+        <mxCell id="isr" value="&#171;interrupt&#187;&lt;br&gt;&lt;u&gt;twdt_isr : ISR&lt;/u&gt;" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="820" y="560" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="isr_slots" value="esp_task_wdt_isr_user_handler()&lt;br&gt;contexto de interrup&#231;&#227;o" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="isr">
+          <mxGeometry x="0" y="40" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- wdt_handler -->
+        <mxCell id="wdt" value="&#171;active&#187;&lt;br&gt;&lt;u&gt;wdt_handler : Task&lt;/u&gt;" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="560" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="wdt_slots" value="prio = 24, espor&#225;dica&lt;br&gt;p&#226;nico: gira o rob&#244; no eixo" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="wdt">
+          <mxGeometry x="0" y="40" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ================= Mensagens =================
+             Chamada sincrona: seta preenchida (endArrow=block, endFill=1)
+             Sinal assincrono: seta aberta (endArrow=open)              -->
+
+        <!-- 1: ir_line escreve os bits dos sensores -->
+        <mxCell id="e_ir_evt" value="1: xEventGroupClearBits(0x1F)&lt;br&gt;2: xEventGroupSetBits(BIT0..BIT4)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.3;" edge="1" parent="1" source="ir" target="evt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- treeeyes escreve a flag de parada -->
+        <mxCell id="e_tree_evt" value="1: xEventGroupSetBits(BIT5) /&lt;br&gt;xEventGroupClearBits(BIT5)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.7;" edge="1" parent="1" source="tree" target="evt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- speed_ctrl le os bits (chamada com retorno) -->
+        <mxCell id="e_speed_evt" value="1: bits = xEventGroupGetBits()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="speed" target="evt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- speed_ctrl notifica wheel_ctrl (assincrono) -->
+        <mxCell id="e_speed_wheel" value="2: xTaskNotifyIndexed(slot 0,&lt;br&gt;dutyL | dutyR &#171;32 bits&#187;,&lt;br&gt;eSetValueWithOverwrite)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="speed" target="wheel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- wheel_ctrl: auto-mensagem (poll da notificacao) -->
+        <mxCell id="e_wheel_self" value="1: xTaskNotifyWaitIndexed(slot 0,&lt;br&gt;timeout = 0)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;exitX=0.75;exitY=0;entryX=0.25;entryY=0;" edge="1" parent="1" source="wheel" target="wheel">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1345" y="140" />
+              <mxPoint x="1235" y="140" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ISR notifica o handler (sinal assincrono) -->
+        <mxCell id="e_isr_wdt" value="1: vTaskNotifyGiveFromISR()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="isr" target="wdt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- wdt_handler suspende as tasks de controle (chamadas sincronas) -->
+        <mxCell id="e_wdt_speed" value="2: vTaskSuspend()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;exitX=0.25;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="wdt" target="speed">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1235" y="470" />
+              <mxPoint x="930" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_wdt_wheel" value="3: vTaskSuspend()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;exitX=0.75;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="wdt" target="wheel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ================= Legenda ================= -->
+        <mxCell id="legend" value="&lt;b&gt;Nota&#231;&#227;o (UML)&lt;/b&gt;&lt;br&gt;seta preenchida &#9658; &#8211; chamada s&#237;ncrona&lt;br&gt;seta aberta &gt; &#8211; sinal ass&#237;ncrono (notifica&#231;&#227;o)&lt;br&gt;&#171;active&#187; &#8211; objeto com thread pr&#243;pria (task FreeRTOS)&lt;br&gt;n&#250;meros &#8211; ordem das mensagens dentro de cada ciclo" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#999999;align=left;spacing=8;verticalAlign=middle;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="560" width="360" height="100" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
