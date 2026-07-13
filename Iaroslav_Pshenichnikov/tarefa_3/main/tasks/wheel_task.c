@@ -62,6 +62,6 @@ portTASK_FUNCTION(wheel_ctrl, arg)
 
       //wcet_end(47);
       esp_task_wdt_reset(); 
-      vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(50));
+      vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(60));
     }
 }

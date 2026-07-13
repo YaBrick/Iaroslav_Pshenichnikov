@@ -55,6 +55,6 @@ portTASK_FUNCTION(ir_line_ctrl, args)
 		//ESP_LOGI(TAG, "%lu", xEventGroupGetBits(evt));
         //wcet_end(47);
         esp_task_wdt_reset(); 
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(20));
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(15));
     }
 }
