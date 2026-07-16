@@ -160,7 +160,7 @@ portTASK_FUNCTION(speed_ctrl, args)
          * Calculado sempre, mesmo parado, para os graficos ficarem coerentes. */
         int pos;
         switch (line){
-            case LINE_L_DISTANT:     pos = -5; break;
+            case LINE_L_DISTANT:     pos = -6; break;
             case LINE_L_DISTANT_MID: pos = -4; break;
             case LINE_L_MID:         pos = -2; break;
             case LINE_L_MID_CENTER:  pos = -1; break;
@@ -168,7 +168,7 @@ portTASK_FUNCTION(speed_ctrl, args)
             case LINE_CENTER_R_MID:  pos =  1; break;
             case LINE_R_MID:         pos =  2; break;
             case LINE_R_MID_DISTANT: pos =  4; break;
-            case LINE_R_DISTANT:     pos =  5; break;
+            case LINE_R_DISTANT:     pos =  6; break;
             default:                 pos =  0; break;
         }
         int dist = (pos < 0) ? -pos : pos;
@@ -194,7 +194,7 @@ portTASK_FUNCTION(speed_ctrl, args)
 
             /* cm/s -> ticks de PWM: multiplica em float antes de truncar (duty fino);
              * o clamp em +-400 fica no wheel_task. */
-            const int common_speed_mult = 25;   // +-16 cm/s -> +-400
+            const int common_speed_mult = 23;   // +-16 cm/s -> +-400
             L_val = (int)(common_speed_mult * wheel_target.l_wheel);
             R_val = (int)(common_speed_mult * wheel_target.r_wheel);
         }
